@@ -426,3 +426,10 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# React kliens (WeatherPalantir.Client)
+dist/
+*.local
+
+# A kliens buildjének kimenete (npm run build) a backend wwwroot mappájába kerül
+WeatherPalantir.Endpoint/wwwroot/
