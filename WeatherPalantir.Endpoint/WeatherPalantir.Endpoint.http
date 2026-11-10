@@ -1,0 +1,27 @@
+@host = http://localhost:5262
+
+GET {{host}}/api/measures
+
+###
+GET {{host}}/api/weather/range
+
+###
+GET {{host}}/api/weather/cube?from=2026-10-01&to=2026-10-31&grain=day&level=region&measures=temperature,precipitation,windDirection
+
+###
+GET {{host}}/api/weather/conditions?from=2026-01-01&to=2026-10-31
+
+###
+GET {{host}}/api/weather/windrose?from=2026-01-01&to=2026-10-31
+
+###
+GET {{host}}/api/regions/geojson
+
+###
+GET {{host}}/api/errorlog?top=50
+
+###
+GET {{host}}/api/geocoding/search?name=Szeged
+
+###
+GET {{host}}/api/newlocations
