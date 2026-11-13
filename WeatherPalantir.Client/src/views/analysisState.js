@@ -103,10 +103,12 @@ export function reducer(state, action) {
       return normalize({ ...state, from: action.from, to: action.to, grain: action.grain ?? state.grain });
 
     // Időbeli lefúrás: a kattintott periódusra szűkít, eggyel finomabb bontással.
+    // A periódus szintje (action.grain) eltérhet az aktuálistól, pl. éves nézetben egy hónapra kattintva.
     case 'drillTime': {
-      const next = finerGrain(state.grain);
+      const grain = action.grain ?? state.grain;
+      const next = finerGrain(grain);
       if (!next) return state;
-      const [from, to] = periodRange(action.period, state.grain, parseIsoDate(action.min), parseIsoDate(action.max));
+      const [from, to] = periodRange(action.period, grain, parseIsoDate(action.min), parseIsoDate(action.max));
       return normalize({
         ...state,
         timeStack: [...state.timeStack, { from: state.from, to: state.to, grain: state.grain }],

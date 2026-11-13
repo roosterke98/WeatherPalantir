@@ -319,3 +319,15 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .tip-table td { padding: 1px 0 1px 12px; }
 .tip-table td:first-child, .tip-table th:first-child { padding-left: 0; text-align: left; }
 .tip-table .num { text-align: right; }
+
+/* --- Hőtérkép --- */
+.facets { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px 28px; }
+.facet { margin: 0; position: relative; min-width: 0; }
+.facet figcaption { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 4px; }
+.facet svg { display: block; }
+.heat-label { font-size: 10px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.heat-cell.clickable { cursor: pointer; }
+.heat-cell:hover { stroke: var(--text); stroke-width: 1.5; }
+.heat-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.heat-ramp { width: 180px; height: 10px; border-radius: 2px; }
+.heat-caption { margin-left: auto; }

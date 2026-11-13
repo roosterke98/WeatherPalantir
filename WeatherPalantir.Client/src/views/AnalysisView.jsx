@@ -13,6 +13,7 @@ import WindRose from '../components/WindRose.jsx';
 import CompassPanel from '../components/CompassPanel.jsx';
 import ConditionChart from '../components/ConditionChart.jsx';
 import MultiMeasureChart from '../components/MultiMeasureChart.jsx';
+import Heatmap, { heatmapMode } from '../components/Heatmap.jsx';
 import PivotTable from '../components/PivotTable.jsx';
 
 export default function AnalysisView({ meta }) {
@@ -71,7 +72,8 @@ export default function AnalysisView({ meta }) {
   const order = useMemo(() => memberOrder(state.level, meta), [state.level, meta]);
   const forecastStart = meta.range.forecastMin ? parsePeriod(meta.range.historicalMax ?? meta.range.forecastMin) : null;
 
-  const drillTime = (period) => dispatch({ type: 'drillTime', period, min: meta.range.min?.slice(0, 10), max: meta.range.max?.slice(0, 10) });
+  const drillTime = (period, grain) =>
+    dispatch({ type: 'drillTime', period, grain, min: meta.range.min?.slice(0, 10), max: meta.range.max?.slice(0, 10) });
   const drillGeo = (memberKey) => state.level !== 'all' && dispatch({ type: 'drillGeo', path: pathFor(state.level, memberKey, meta) });
 
   // A térképen csak a kiválasztott országok (lefúrás után csak a kiválasztott ország / régió) látszanak.
@@ -160,7 +162,7 @@ export default function AnalysisView({ meta }) {
             order={order}
             currentPeriod={currentPeriod}
             forecastStart={forecastStart}
-            onDrill={drillTime}
+            onDrill={(period) => drillTime(period)}
             onBrush={(start, end) => dispatch({ type: 'brushTime', start, end })}
             onMemberClick={(m) => drillGeo(m.key)}
             onPeriodSelect={(p) => {
@@ -186,8 +188,18 @@ export default function AnalysisView({ meta }) {
           onSelectedChange={setCompareMeasures}
           order={order}
           forecastStart={forecastStart}
-          onDrill={drillTime}
+          onDrill={(period) => drillTime(period)}
         />
+      </section>
+
+      <section className="card">
+        <div className="card-head">
+          <h2>Hőtérkép – {measure.label} ({measure.unit})</h2>
+          <span className="muted small">
+            A felbontás az időbeli szintet követi{heatmapMode(state.grain) !== 'hour' ? ' · Kattintás egy cellára: lefúrás' : ''}
+          </span>
+        </div>
+        <Heatmap params={baseParams} paramsKey={key} measure={measure} order={order} onDrill={drillTime} />
       </section>
 
       <section className="card">
