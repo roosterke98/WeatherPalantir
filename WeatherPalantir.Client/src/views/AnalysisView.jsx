@@ -15,6 +15,7 @@ import ConditionChart from '../components/ConditionChart.jsx';
 import MultiMeasureChart from '../components/MultiMeasureChart.jsx';
 import Heatmap, { heatmapMode } from '../components/Heatmap.jsx';
 import ConditionTimeline from '../components/ConditionTimeline.jsx';
+import YearOverYearChart from '../components/YearOverYearChart.jsx';
 import PivotTable from '../components/PivotTable.jsx';
 
 export default function AnalysisView({ meta }) {
@@ -214,6 +215,14 @@ export default function AnalysisView({ meta }) {
           selected={state.conditions}
           onToggle={(k) => dispatch({ type: 'toggleCondition', key: k })}
         />
+      </section>
+
+      <section className="card">
+        <div className="card-head">
+          <h2>Éves összehasonlítás – {measure.label} ({measure.unit})</h2>
+          <span className="muted small">A teljes betöltött időszak, havi bontásban · Kattintás: lefúrás az évre / hónapra</span>
+        </div>
+        <YearOverYearChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
       </section>
 
       <section className="card">

@@ -337,3 +337,7 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .cond-seg.dim, .legend-item.dim { opacity: 0.35; }
 .cond-col:hover .cond-seg:not(.dim) { opacity: 0.85; }
 .viz-tools .breadcrumb { margin-right: 4px; }
+
+/* --- Éves összehasonlítás --- */
+.mean-line { fill: none; stroke: var(--text); stroke-width: 1.5; stroke-dasharray: 5 4; pointer-events: none; }
+.swatch.dashed { width: 16px; height: 0; border-top: 2px dashed var(--text); border-radius: 0; vertical-align: 3px; }
