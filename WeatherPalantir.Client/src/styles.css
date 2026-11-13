@@ -308,3 +308,14 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .selected-place dt { color: var(--text-2); }
 .selected-place dd { margin: 0; font-variant-numeric: tabular-nums; }
 .actions { display: flex; gap: 8px; }
+
+/* --- Paraméterek összehasonlítása --- */
+.viz-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.viz-tools select { height: 30px; font-size: 13px; }
+.panel-title { font-size: 12px; font-weight: 600; fill: var(--text-2); }
+.hover-area { fill: transparent; }
+.tip-table { border-collapse: collapse; margin-top: 4px; }
+.tip-table th { font-weight: 500; color: var(--muted); text-align: right; padding: 0 0 2px 12px; }
+.tip-table td { padding: 1px 0 1px 12px; }
+.tip-table td:first-child, .tip-table th:first-child { padding-left: 0; text-align: left; }
+.tip-table .num { text-align: right; }

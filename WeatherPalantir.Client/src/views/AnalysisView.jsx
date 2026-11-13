@@ -12,12 +12,14 @@ import TimeSeriesChart from '../components/TimeSeriesChart.jsx';
 import WindRose from '../components/WindRose.jsx';
 import CompassPanel from '../components/CompassPanel.jsx';
 import ConditionChart from '../components/ConditionChart.jsx';
+import MultiMeasureChart from '../components/MultiMeasureChart.jsx';
 import PivotTable from '../components/PivotTable.jsx';
 
 export default function AnalysisView({ meta }) {
   const [state, dispatch] = useReducer(reducer, meta, createInitialState);
   const measuresByKey = useMemo(() => Object.fromEntries(meta.measures.map((m) => [m.key, m])), [meta.measures]);
   const measure = measuresByKey[state.measure];
+  const [compareMeasures, setCompareMeasures] = useState(['temperature', 'precipitation', 'windSpeed', 'cloudCover']);
 
   // Másodlagos paraméter csak olyan lehet, amely vizuálisan nem takarja az elsődlegeset:
   // színezés (fill) mellé jel (glyph: irányvonal, buborék), jel mellé színezés.
@@ -69,6 +71,7 @@ export default function AnalysisView({ meta }) {
   const order = useMemo(() => memberOrder(state.level, meta), [state.level, meta]);
   const forecastStart = meta.range.forecastMin ? parsePeriod(meta.range.historicalMax ?? meta.range.forecastMin) : null;
 
+  const drillTime = (period) => dispatch({ type: 'drillTime', period, min: meta.range.min?.slice(0, 10), max: meta.range.max?.slice(0, 10) });
   const drillGeo = (memberKey) => state.level !== 'all' && dispatch({ type: 'drillGeo', path: pathFor(state.level, memberKey, meta) });
 
   // A térképen csak a kiválasztott országok (lefúrás után csak a kiválasztott ország / régió) látszanak.
@@ -157,7 +160,7 @@ export default function AnalysisView({ meta }) {
             order={order}
             currentPeriod={currentPeriod}
             forecastStart={forecastStart}
-            onDrill={(period) => dispatch({ type: 'drillTime', period, min: meta.range.min?.slice(0, 10), max: meta.range.max?.slice(0, 10) })}
+            onDrill={drillTime}
             onBrush={(start, end) => dispatch({ type: 'brushTime', start, end })}
             onMemberClick={(m) => drillGeo(m.key)}
             onPeriodSelect={(p) => {
@@ -166,6 +169,25 @@ export default function AnalysisView({ meta }) {
             }}
           />
         )}
+      </section>
+
+      <section className="card">
+        <div className="card-head">
+          <h2>Paraméterek összehasonlítása</h2>
+          <span className="muted small">
+            Közös időtengely, paraméterenként külön értéktengely{state.grain !== 'hour' ? ' · Kattintás: lefúrás a periódusba' : ''}
+          </span>
+        </div>
+        <MultiMeasureChart
+          params={baseParams}
+          paramsKey={key}
+          measures={meta.measures}
+          selected={compareMeasures}
+          onSelectedChange={setCompareMeasures}
+          order={order}
+          forecastStart={forecastStart}
+          onDrill={drillTime}
+        />
       </section>
 
       <section className="card">
