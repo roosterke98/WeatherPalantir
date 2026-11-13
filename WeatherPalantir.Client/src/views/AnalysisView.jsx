@@ -16,6 +16,7 @@ import MultiMeasureChart from '../components/MultiMeasureChart.jsx';
 import Heatmap, { heatmapMode } from '../components/Heatmap.jsx';
 import ConditionTimeline from '../components/ConditionTimeline.jsx';
 import YearOverYearChart from '../components/YearOverYearChart.jsx';
+import TrendChart from '../components/TrendChart.jsx';
 import PivotTable from '../components/PivotTable.jsx';
 
 export default function AnalysisView({ meta }) {
@@ -223,6 +224,14 @@ export default function AnalysisView({ meta }) {
           <span className="muted small">A teljes betöltött időszak, havi bontásban · Kattintás: lefúrás az évre / hónapra</span>
         </div>
         <YearOverYearChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
+      </section>
+
+      <section className="card">
+        <div className="card-head">
+          <h2>Éves trend – {measure.label} ({measure.unit})</h2>
+          <span className="muted small">A teljes betöltött időszak, éves bontásban · Kattintás: lefúrás az évre</span>
+        </div>
+        <TrendChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
       </section>
 
       <section className="card">
