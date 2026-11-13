@@ -345,3 +345,8 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 /* --- Éves trend --- */
 .trend-line { stroke-width: 1.5; stroke-dasharray: 6 4; opacity: 0.8; pointer-events: none; }
 .zero-line { stroke: var(--axis); stroke-width: 1.5; }
+
+/* --- Évek kijelölése --- */
+.btn.small { height: 28px; padding: 0 10px; font-size: 12px; }
+.legend-item.year.picked { color: var(--text); font-weight: 600; }
+.legend .btn.small { height: 24px; }

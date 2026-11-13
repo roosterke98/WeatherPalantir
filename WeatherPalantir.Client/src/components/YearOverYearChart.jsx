@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import { api } from '../api.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { useWidth } from '../hooks/useSize.js';
-import { categorical, isDark } from '../utils/colors.js';
+import { isDark } from '../utils/colors.js';
 import { formatValue } from '../utils/format.js';
 import { parsePeriod } from '../utils/time.js';
 import { showTip } from './ChoroplethMap.jsx';
@@ -24,10 +24,12 @@ const isComplete = (row, period) => {
  * Éves összehasonlítás: a hónapok a vízszintes tengelyen, évenként egy vonal, így az évszakos menet
  * és az évek közötti eltérés egyszerre látszik. A teljes betöltött időszakot mutatja (az időszak-szűrőtől
  * függetlenül), tagonként (helyszín / régió / ország) külön panelen, közös értéktengellyel.
+ * A jelmagyarázatban egy évre kattintva csak a kijelölt évek maradnak; az „Összes év” visszaállítja a nézetet.
  */
 export default function YearOverYearChart({ params, measure, range, order, onDrill }) {
   const theme = useTheme();
   const [hoverYear, setHoverYear] = useState(null);
+  const [picked, setPicked] = useState([]);
   const supported = measure.key !== 'windDirection';
   const history = { ...params, from: range.min?.slice(0, 10), to: range.max?.slice(0, 10), grain: 'month', measures: [measure.key] };
   const historyKey = JSON.stringify(history);
@@ -48,18 +50,26 @@ export default function YearOverYearChart({ params, measure, range, order, onDri
       }))
       .sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
 
-    // Az évek rendezett sorozat: egy színárnyalat világostól sötétig, a legutóbbi év kiemelve.
+    // Az évek rendezett sorozat, ezért időrendben végigfutó, de jól elkülönülő színárnyalatokat kapnak
+    // (kéktől a zöldön és sárgán át a vörösig); a világos felületen a halvány árnyalatok sötétebbek.
     const last = years[years.length - 1];
-    const ramp = d3.interpolateRgbBasis(isDark() ? ['#3a4f95', '#3987e5', '#9ec5f4', '#e3eefc'] : ['#b7d3f6', '#5598e7', '#1c5cab', '#0d366b']);
-    const scale = d3.scaleLinear([years[0], Math.max(years[0] + 1, last - 1)], [0, 1]).clamp(true);
-    const yearColor = (yr) => (yr === last ? categorical()[1] : ramp(scale(yr)));
+    const scale = d3.scaleLinear([years[0], Math.max(years[0] + 1, last)], [0.06, 0.94]);
+    const yearColor = (yr) => {
+      const c = d3.hsl(d3.interpolateTurbo(scale(yr)));
+      if (!isDark() && c.l > 0.42) c.l = 0.42;
+      if (isDark() && c.l < 0.55) c.l = 0.55;
+      return c.formatHex();
+    };
     return { panels: all.slice(0, MAX_PANELS), hidden: Math.max(0, all.length - MAX_PANELS), years, last, yearColor, extent: d3.extent(rows, (r) => r.value) };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a színek témafüggők
   }, [cube.data, measure, order, theme]);
 
   if (!supported) return <div className="empty">A szélirányhoz nem készül éves összehasonlítás – válassz másik paramétert.</div>;
 
-  const { panels, years, last, yearColor, extent, hidden } = model;
+  const { panels, years, yearColor, extent, hidden } = model;
+  const shownYears = picked.length ? years.filter((yr) => picked.includes(yr)) : years;
+  const last = shownYears[shownYears.length - 1];
+  const togglePicked = (yr) => setPicked((p) => (p.includes(yr) ? p.filter((x) => x !== yr) : [...p, yr]));
 
   return (
     <div className="chart-wrap">
@@ -73,12 +83,13 @@ export default function YearOverYearChart({ params, measure, range, order, onDri
               <button
                 key={yr}
                 role="listitem"
-                className={`legend-item${hoverYear != null && hoverYear !== yr ? ' dim' : ''}`}
-                title="Lefúrás erre az évre"
+                aria-pressed={picked.includes(yr)}
+                className={`legend-item year${picked.includes(yr) ? ' picked' : ''}${(picked.length && !picked.includes(yr)) || (hoverYear != null && hoverYear !== yr) ? ' dim' : ''}`}
+                title={picked.includes(yr) ? 'Kivétel a kijelölésből' : 'Csak a kijelölt évek megjelenítése'}
                 onPointerEnter={() => setHoverYear(yr)}
                 onFocus={() => setHoverYear(yr)}
                 onBlur={() => setHoverYear(null)}
-                onClick={() => onDrill(new Date(yr, 0, 1), 'year')}
+                onClick={() => togglePicked(yr)}
               >
                 <span className="swatch" style={{ background: yearColor(yr) }} />
                 {yr}
@@ -88,10 +99,15 @@ export default function YearOverYearChart({ params, measure, range, order, onDri
               <span className="swatch dashed" />
               többéves átlag
             </span>
+            {picked.length > 0 && (
+              <button className="btn small" onClick={() => setPicked([])}>
+                ← Összes év
+              </button>
+            )}
           </div>
           <div className="facets">
             {panels.map((p) => (
-              <YearPanel key={p.key} panel={p} years={years} last={last} yearColor={yearColor} extent={extent} measure={measure} hoverYear={hoverYear} showTitle={panels.length > 1} onDrill={onDrill} />
+              <YearPanel key={p.key} panel={p} years={shownYears} last={last} yearColor={yearColor} extent={extent} measure={measure} hoverYear={hoverYear} showTitle={panels.length > 1} onDrill={onDrill} />
             ))}
           </div>
           {measure.aggregation === 'sum' && <p className="muted small">A csonka (részben betöltött) hónapok összegei nem szerepelnek.</p>}
@@ -126,13 +142,14 @@ function YearPanel({ panel, years, last, yearColor, extent, measure, hoverYear, 
 
     const line = d3.line().defined((d) => d[1] != null).x((d) => x(d[0])).y((d) => y(d[1])).curve(d3.curveMonotoneX);
     // A kiemelt (vagy a legutóbbi) év kerül felülre.
-    const top = hoverYear ?? last;
+    const hovering = hoverYear != null && years.includes(hoverYear);
+    const top = hovering ? hoverYear : last;
     for (const yr of [...years].sort((a, b) => (a === top) - (b === top))) {
       const vals = panel.byYear.get(yr);
       if (!vals) continue;
       const pts = MONTHS.map((m) => [m, vals.get(m) ?? null]);
       const emphasized = yr === top;
-      const faded = hoverYear != null && yr !== hoverYear;
+      const faded = hovering && yr !== top;
       const series = g.append('g').attr('opacity', faded ? 0.18 : 1);
       series.append('path').attr('class', 'line').attr('stroke', yearColor(yr)).attr('stroke-width', emphasized ? 2.5 : 1.5).attr('d', line(pts));
       // Egyetlen hónapnyi (szakadozott) adat vonal nélkül is látszódjon.
