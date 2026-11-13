@@ -58,6 +58,9 @@ public sealed record WeatherConditionDto(int WeatherConditionKey, string Descrip
 
 public sealed record ConditionCountDto(int? WeatherConditionKey, string Description, string? Severity, int Hours);
 
+/// <summary>Egy időjárási viszony óraszáma egy periódusban (a viszonyok időbeli megoszlásához).</summary>
+public sealed record ConditionSeriesRowDto(DateTime? Period, int? WeatherConditionKey, string Description, string? Severity, int Hours);
+
 public sealed record WindRoseCellDto(int Sector, int SpeedBand, int Hours);
 
 public sealed record ErrorLogDto(int LogId, DateTime? ExecutionDate, string? PackageName, string? ComponentName, string? ErrorMessage);

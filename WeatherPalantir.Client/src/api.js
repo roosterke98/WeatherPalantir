@@ -65,6 +65,7 @@ export const api = {
   range: (signal) => request('/weather/range', { signal }),
   cube: (params, signal) => request('/weather/cube', { params, signal }),
   conditions: (params, signal) => request('/weather/conditions', { params, signal }),
+  conditionSeries: (params, signal) => request('/weather/conditions/series', { params, signal }),
   windRose: (params, signal) => request('/weather/windrose', { params, signal }),
   errorLog: (params, signal) => request('/errorlog', { params, signal }),
   errorPackages: (signal) => request('/errorlog/packages', { signal }),

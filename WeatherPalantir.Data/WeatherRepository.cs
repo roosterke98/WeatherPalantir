@@ -8,6 +8,7 @@ public interface IWeatherRepository
 {
     Task<CubeResult> QueryCubeAsync(CubeQuery query, IReadOnlyList<MeasureDefinition> measures, CancellationToken ct);
     Task<IReadOnlyList<ConditionCountDto>> GetConditionCountsAsync(CubeQuery query, CancellationToken ct);
+    Task<IReadOnlyList<ConditionSeriesRowDto>> GetConditionSeriesAsync(CubeQuery query, CancellationToken ct);
     Task<IReadOnlyList<WindRoseCellDto>> GetWindRoseAsync(CubeQuery query, CancellationToken ct);
     Task<DataRangeDto> GetDataRangeAsync(CancellationToken ct);
 }
@@ -142,6 +143,32 @@ public sealed class WeatherRepository(IDbConnectionFactory db) : IWeatherReposit
             """;
         await using var conn = await db.OpenAsync(ct);
         var result = await conn.QueryAsync<ConditionCountDto>(new CommandDefinition(sql, p, commandTimeout: 120, cancellationToken: ct));
+        return result.ToList();
+    }
+
+    /// <summary>
+    /// Az időjárási viszonyok óraszáma periódusonként, a választott időbeli szinten. A súlyosság (Severity)
+    /// szerinti felgöngyölítést a kliens végzi, így a lefúrás (súlyosság → viszony) nem igényel új lekérdezést.
+    /// </summary>
+    public async Task<IReadOnlyList<ConditionSeriesRowDto>> GetConditionSeriesAsync(CubeQuery query, CancellationToken ct)
+    {
+        var p = new DynamicParameters();
+        var period = SqlFragments.PeriodExpr(query.Grain);
+        var groupPeriod = query.Grain == TimeGrain.All ? "" : $"{period}, ";
+        var sql = $"""
+            SELECT {period} AS Period,
+                   f.WeatherConditionKey,
+                   COALESCE(wc.[Description], N'Ismeretlen') AS [Description],
+                   wc.Severity,
+                   COUNT(*) AS Hours
+            {SqlFragments.StarJoin}
+            LEFT JOIN dm.DimWeatherCondition wc ON wc.WeatherConditionKey = f.WeatherConditionKey
+            {SqlFragments.Where(query, p)}
+            GROUP BY {groupPeriod}f.WeatherConditionKey, wc.[Description], wc.Severity
+            ORDER BY 1, 2;
+            """;
+        await using var conn = await db.OpenAsync(ct);
+        var result = await conn.QueryAsync<ConditionSeriesRowDto>(new CommandDefinition(sql, p, commandTimeout: 120, cancellationToken: ct));
         return result.ToList();
     }
 

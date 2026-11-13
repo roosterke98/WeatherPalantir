@@ -30,6 +30,15 @@ public sealed class WeatherController(IWeatherRepository repository) : Controlle
         return Ok(await repository.GetConditionCountsAsync(query, ct));
     }
 
+    /// <summary>Az időjárási viszonyok óraszáma periódusonként (grain), a súlyosság szerinti csoportosításhoz is.</summary>
+    [HttpGet("conditions/series")]
+    public async Task<ActionResult<IReadOnlyList<ConditionSeriesRowDto>>> ConditionSeries([FromQuery] CubeQueryParameters parameters, CancellationToken ct)
+    {
+        if (!parameters.TryBuild(requireMeasures: false, out var query, out _, out var error))
+            return ValidationProblem(error!);
+        return Ok(await repository.GetConditionSeriesAsync(query, ct));
+    }
+
     /// <summary>Szélrózsa adatai: 16 szektor × 5 sebességsáv (0–5, 5–15, 15–25, 25–40, 40+ km/h).</summary>
     [HttpGet("windrose")]
     public async Task<ActionResult<IReadOnlyList<WindRoseCellDto>>> WindRose([FromQuery] CubeQueryParameters parameters, CancellationToken ct)

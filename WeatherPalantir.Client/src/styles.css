@@ -331,3 +331,9 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .heat-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .heat-ramp { width: 180px; height: 10px; border-radius: 2px; }
 .heat-caption { margin-left: auto; }
+
+/* --- Időjárási viszonyok megoszlása --- */
+.cond-seg { transition: opacity 0.15s; }
+.cond-seg.dim, .legend-item.dim { opacity: 0.35; }
+.cond-col:hover .cond-seg:not(.dim) { opacity: 0.85; }
+.viz-tools .breadcrumb { margin-right: 4px; }

@@ -14,6 +14,7 @@ import CompassPanel from '../components/CompassPanel.jsx';
 import ConditionChart from '../components/ConditionChart.jsx';
 import MultiMeasureChart from '../components/MultiMeasureChart.jsx';
 import Heatmap, { heatmapMode } from '../components/Heatmap.jsx';
+import ConditionTimeline from '../components/ConditionTimeline.jsx';
 import PivotTable from '../components/PivotTable.jsx';
 
 export default function AnalysisView({ meta }) {
@@ -200,6 +201,19 @@ export default function AnalysisView({ meta }) {
           </span>
         </div>
         <Heatmap params={baseParams} paramsKey={key} measure={measure} order={order} onDrill={drillTime} />
+      </section>
+
+      <section className="card">
+        <div className="card-head">
+          <h2>Időjárási viszonyok megoszlása</h2>
+          <span className="muted small">Az órák aránya periódusonként · Súlyosság → viszony</span>
+        </div>
+        <ConditionTimeline
+          params={baseParams}
+          paramsKey={key}
+          selected={state.conditions}
+          onToggle={(k) => dispatch({ type: 'toggleCondition', key: k })}
+        />
       </section>
 
       <section className="card">
