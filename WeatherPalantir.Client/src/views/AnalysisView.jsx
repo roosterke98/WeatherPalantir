@@ -92,8 +92,10 @@ export default function AnalysisView({ meta }) {
 
   return (
     <div className="analysis">
-      <FilterBar state={state} dispatch={dispatch} meta={meta} measure={measure} secondaryOptions={secondaryOptions} secondary={secondary} />
-      <OlapBar state={state} dispatch={dispatch} meta={meta} />
+      <div className="analysis-sticky">
+        <FilterBar state={state} dispatch={dispatch} meta={meta} measure={measure} secondaryOptions={secondaryOptions} secondary={secondary} />
+        <OlapBar state={state} dispatch={dispatch} meta={meta} />
+      </div>
 
       {cube.error && <div className="alert error">{cube.error.message}</div>}
 
