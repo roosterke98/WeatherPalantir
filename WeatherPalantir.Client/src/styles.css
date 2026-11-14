@@ -385,3 +385,13 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .tab:hover { background: var(--surface-2); color: var(--text); }
 .tab.active { color: var(--text); border-bottom-color: var(--accent); }
 .tab-bar .loc-picker { padding-bottom: 8px; }
+
+/* --- Korrelációs mátrix --- */
+.corr-grid { display: flex; flex-wrap: wrap; gap: 20px 32px; }
+.corr-table { border-collapse: separate; border-spacing: 2px; font-size: 12px; }
+.corr-table th { font-weight: 500; color: var(--text-2); padding: 4px 8px; max-width: 110px; }
+.corr-table thead th { vertical-align: bottom; text-align: center; }
+.corr-table tbody th { text-align: right; }
+.corr-cell { width: 64px; height: 40px; text-align: center; border-radius: 4px; font-variant-numeric: tabular-nums; font-weight: 600; }
+.corr-cell.self { background: var(--surface-2); color: var(--muted); font-weight: 400; }
+.corr-cell.na { color: var(--muted); }

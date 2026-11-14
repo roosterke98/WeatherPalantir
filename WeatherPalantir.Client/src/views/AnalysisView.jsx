@@ -19,6 +19,7 @@ import YearOverYearChart from '../components/YearOverYearChart.jsx';
 import TrendChart from '../components/TrendChart.jsx';
 import PivotTable from '../components/PivotTable.jsx';
 import LocationPicker from '../components/LocationPicker.jsx';
+import CorrelationMatrix from '../components/CorrelationMatrix.jsx';
 
 /** A térkép alatti fülek. */
 const TABS = [
@@ -291,6 +292,14 @@ export default function AnalysisView({ meta }) {
               forecastStart={forecastStart}
               onDrill={(period) => drillTime(period)}
             />
+          </section>
+
+          <section className="card">
+            <div className="card-head">
+              <h2>Korrelációs mátrix</h2>
+              <span className="muted small">A fent kiválasztott paraméterek között, tagonként (helyszín / régió / ország)</span>
+            </div>
+            <CorrelationMatrix params={baseParams} paramsKey={key} measures={meta.measures} selected={compareMeasures} order={order} />
           </section>
         </div>
       )}
