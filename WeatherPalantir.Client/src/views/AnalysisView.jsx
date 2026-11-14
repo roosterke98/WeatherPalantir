@@ -19,11 +19,20 @@ import YearOverYearChart from '../components/YearOverYearChart.jsx';
 import TrendChart from '../components/TrendChart.jsx';
 import PivotTable from '../components/PivotTable.jsx';
 
+/** A kiválasztott paraméter négy nézete egy kártyán, füleken. */
+const VIEWS = [
+  { key: 'series', label: 'Idősor' },
+  { key: 'heatmap', label: 'Hőtérkép' },
+  { key: 'yoy', label: 'Éves összehasonlítás' },
+  { key: 'trend', label: 'Éves trend' },
+];
+
 export default function AnalysisView({ meta }) {
   const [state, dispatch] = useReducer(reducer, meta, createInitialState);
   const measuresByKey = useMemo(() => Object.fromEntries(meta.measures.map((m) => [m.key, m])), [meta.measures]);
   const measure = measuresByKey[state.measure];
   const [compareMeasures, setCompareMeasures] = useState(['temperature', 'precipitation', 'windSpeed', 'cloudCover']);
+  const [view, setView] = useState('series');
 
   // Másodlagos paraméter csak olyan lehet, amely vizuálisan nem takarja az elsődlegeset:
   // színezés (fill) mellé jel (glyph: irányvonal, buborék), jel mellé színezés.
@@ -90,6 +99,15 @@ export default function AnalysisView({ meta }) {
     };
   }, [meta.geo, meta.locations, state.mapCountries, focusCountry, focusRegion]);
 
+  const viewHint = {
+    series: needsWind
+      ? 'Az iránytű a csúszka aktuális periódusát mutatja'
+      : `${state.grain !== 'hour' ? 'Kattintás: lefúrás a periódusba · ' : ''}Húzás: időszak kijelölése`,
+    heatmap: `A felbontás az időbeli szintet követi${heatmapMode(state.grain) !== 'hour' ? ' · Kattintás egy cellára: lefúrás' : ''}`,
+    yoy: 'A teljes betöltött időszak, havi bontásban · Kattintás egy évre: kijelölés · Kattintás a grafikonra: lefúrás a hónapba',
+    trend: 'A teljes betöltött időszak, éves bontásban · Kattintás: lefúrás az évre',
+  }[view];
+
   return (
     <div className="analysis">
       <div className="analysis-sticky">
@@ -146,14 +164,25 @@ export default function AnalysisView({ meta }) {
 
       <section className="card">
         <div className="card-head">
-          <h2>{needsWind ? 'Szélirány – szélrózsa és iránytű' : `${measure.label} (${measure.unit}) – idősor`}</h2>
-          <span className="muted small">
-            {needsWind
-              ? 'Az iránytű a csúszka aktuális periódusát mutatja'
-              : `${state.grain !== 'hour' ? 'Kattintás: lefúrás a periódusba · ' : ''}Húzás: időszak kijelölése`}
-          </span>
+          <h2>{measure.label} ({measure.unit})</h2>
+          <span className="muted small">{viewHint}</span>
         </div>
-        {needsWind ? (
+        <div className="viz-tools">
+          <div className="segmented" role="tablist" aria-label="A paraméter nézetei">
+            {VIEWS.map((v) => (
+              <button key={v.key} role="tab" aria-selected={view === v.key} className={view === v.key ? 'active' : ''} onClick={() => setView(v.key)}>
+                {v.key === 'series' && needsWind ? 'Szélrózsa és iránytű' : v.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {view === 'heatmap' ? (
+          <Heatmap params={baseParams} paramsKey={key} measure={measure} order={order} onDrill={drillTime} />
+        ) : view === 'yoy' ? (
+          <YearOverYearChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
+        ) : view === 'trend' ? (
+          <TrendChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
+        ) : needsWind ? (
           <div className="wind-grid">
             <WindRose data={windRose.data} loading={windRose.loading} />
             <CompassPanel cube={cube.data} period={currentPeriod} grain={state.grain} order={order} />
@@ -197,15 +226,6 @@ export default function AnalysisView({ meta }) {
         />
       </section>
 
-      <section className="card">
-        <div className="card-head">
-          <h2>Hőtérkép – {measure.label} ({measure.unit})</h2>
-          <span className="muted small">
-            A felbontás az időbeli szintet követi{heatmapMode(state.grain) !== 'hour' ? ' · Kattintás egy cellára: lefúrás' : ''}
-          </span>
-        </div>
-        <Heatmap params={baseParams} paramsKey={key} measure={measure} order={order} onDrill={drillTime} />
-      </section>
 
       <section className="card">
         <div className="card-head">
@@ -220,21 +240,6 @@ export default function AnalysisView({ meta }) {
         />
       </section>
 
-      <section className="card">
-        <div className="card-head">
-          <h2>Éves összehasonlítás – {measure.label} ({measure.unit})</h2>
-          <span className="muted small">A teljes betöltött időszak, havi bontásban · Kattintás: lefúrás az évre / hónapra</span>
-        </div>
-        <YearOverYearChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
-      </section>
-
-      <section className="card">
-        <div className="card-head">
-          <h2>Éves trend – {measure.label} ({measure.unit})</h2>
-          <span className="muted small">A teljes betöltött időszak, éves bontásban · Kattintás: lefúrás az évre</span>
-        </div>
-        <TrendChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
-      </section>
 
       <section className="card">
         <div className="card-head">
