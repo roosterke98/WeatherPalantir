@@ -23,14 +23,13 @@ const readNavOpen = () => {
 
 /** Az alkalmazás egyszer tölti be a dimenziókat és metaadatokat, ezeket minden nézet megkapja. */
 async function loadMeta(signal) {
-  const [measures, regions, locations, range, geo] = await Promise.all([
+  const [measures, regions, locations, range] = await Promise.all([
     api.measures(signal),
     api.regions(signal),
     api.locations(signal),
     api.range(signal),
-    api.regionsGeoJson(signal),
   ]);
-  return { measures, regions, locations, range, geo };
+  return { measures, regions, locations, range };
 }
 
 const Icon = ({ d }) => (

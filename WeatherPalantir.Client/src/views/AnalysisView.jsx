@@ -28,6 +28,8 @@ const VIEWS = [
   { key: 'trend', label: 'Éves trend' },
 ];
 
+const NO_FEATURES = [];
+
 export default function AnalysisView({ meta }) {
   const [state, dispatch] = useReducer(reducer, meta, createInitialState);
   const measuresByKey = useMemo(() => Object.fromEntries(meta.measures.map((m) => [m.key, m])), [meta.measures]);
@@ -93,13 +95,16 @@ export default function AnalysisView({ meta }) {
   // A térképen csak a kiválasztott országok (lefúrás után csak a kiválasztott ország / régió) látszanak.
   const focusCountry = state.geoPath.find((p) => p.level === 'country')?.key;
   const focusRegion = state.geoPath.find((p) => p.level === 'region')?.key;
+  // A régióhatárok országonként töltődnek be: csak a térképre felvett országoké.
+  const mapGeo = useFetch(() => api.regionsGeoJson(state.mapCountries), [state.mapCountries.join()]);
+  const geoFeatures = mapGeo.data?.features ?? NO_FEATURES;
   const visibleGeo = useMemo(() => {
     const show = (cc, rk) => (focusRegion ? String(rk) === focusRegion : focusCountry ? cc === focusCountry : state.mapCountries.includes(cc));
     return {
-      geo: { type: 'FeatureCollection', features: meta.geo.features.filter((f) => show(f.properties.countryCode, f.properties.regionKey)) },
+      geo: { type: 'FeatureCollection', features: geoFeatures.filter((f) => show(f.properties.countryCode, f.properties.regionKey)) },
       locations: meta.locations.filter((l) => show(l.countryCode, l.regionKey)),
     };
-  }, [meta.geo, meta.locations, state.mapCountries, focusCountry, focusRegion]);
+  }, [geoFeatures, meta.locations, state.mapCountries, focusCountry, focusRegion]);
 
   // Helyszínek kijelölése: a térkép kijelölő módjában és a grafikonok helyszínválasztójában ugyanaz a halmaz.
   const pickable = useMemo(() => visibleGeo.locations.filter((l) => l.isActive).sort((a, b) => a.locationKey - b.locationKey), [visibleGeo]);
@@ -134,6 +139,7 @@ export default function AnalysisView({ meta }) {
       </div>
 
       {cube.error && <div className="alert error">{cube.error.message}</div>}
+      {mapGeo.error && <div className="alert error">A térkép határainak betöltése sikertelen: {mapGeo.error.message}</div>}
 
       <section className="grid-top">
         <div className="card map-card">
@@ -165,7 +171,7 @@ export default function AnalysisView({ meta }) {
             geo={visibleGeo.geo}
             locations={visibleGeo.locations}
             cube={cube.data}
-            loading={cube.loading}
+            loading={cube.loading || mapGeo.loading}
             level={state.level}
             period={currentPeriod}
             measure={measure}

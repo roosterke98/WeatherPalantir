@@ -8,6 +8,7 @@ import { parsePeriod } from '../utils/time.js';
 import Typeahead from '../components/Typeahead.jsx';
 import { useTheme } from '../utils/theme.js';
 
+const NO_GEO = { type: 'FeatureCollection', features: [] };
 const STATUS_HU = { Pending: 'Várakozik', Processing: 'Feldolgozás alatt', Completed: 'Kész', Failed: 'Hiba', Error: 'Hiba' };
 const STATUS_CLASS = { Pending: 'warn', Processing: 'info', Completed: 'good', Failed: 'bad', Error: 'bad' };
 
@@ -20,6 +21,11 @@ export default function NewLocationView({ meta, onLocationsChanged, active }) {
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
   const queue = useFetch((signal) => api.newLocations(signal), [active]);
+
+  // A térképhez csak azoknak az országoknak a határai kellenek, ahol már van helyszín, illetve ahová a kiválasztott pont esik.
+  const selectedCountry = meta.regions.find((r) => r.regionKey === selected?.regionKey)?.countryCode;
+  const countries = [...new Set([...meta.locations.map((l) => l.countryCode), selectedCountry].filter(Boolean))].sort();
+  const geo = useFetch(() => api.regionsGeoJson(countries), [countries.join()], { enabled: active });
 
   const submit = async () => {
     if (!selected) return;
@@ -82,7 +88,7 @@ export default function NewLocationView({ meta, onLocationsChanged, active }) {
             )}
             {message && <div className={`alert ${message.type}`}>{message.text}</div>}
           </div>
-          <PlaceMap geo={meta.geo} locations={meta.locations} queue={queue.data ?? []} selected={selected} />
+          <PlaceMap geo={geo.data ?? NO_GEO} locations={meta.locations} queue={queue.data ?? []} selected={selected} />
         </div>
       </section>
 
@@ -170,6 +176,7 @@ function PlaceMap({ geo, locations, queue, selected }) {
   useEffect(() => {
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
+    if (!geo.features.length) return; // a határok még töltődnek
     const path = d3.geoPath(projection);
     svg.append('g').selectAll('path').data(geo.features).join('path').attr('class', 'region static')
       .classed('highlight', (f) => selected?.regionKey === f.properties.regionKey).attr('d', path);

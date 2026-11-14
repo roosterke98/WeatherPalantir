@@ -57,11 +57,23 @@ export function cubeParams(s, overrides = {}) {
   };
 }
 
+/** Egy ország régióhatárai; a munkamenetben csak egyszer töltődnek le. */
+const geoByCountry = new Map();
+function countryFeatures(code) {
+  if (!geoByCountry.has(code)) {
+    const pending = request('/regions/geojson', { params: { countries: code } }).then((fc) => fc.features);
+    pending.catch(() => geoByCountry.delete(code));
+    geoByCountry.set(code, pending);
+  }
+  return geoByCountry.get(code);
+}
+
 export const api = {
   measures: (signal) => request('/measures', { signal }),
   locations: (signal) => request('/locations', { signal }),
   regions: (signal) => request('/regions', { signal }),
-  regionsGeoJson: (signal) => request('/regions/geojson', { signal }),
+  regionsGeoJson: (countries) =>
+    Promise.all(countries.map(countryFeatures)).then((lists) => ({ type: 'FeatureCollection', features: lists.flat() })),
   range: (signal) => request('/weather/range', { signal }),
   cube: (params, signal) => request('/weather/cube', { params, signal }),
   conditions: (params, signal) => request('/weather/conditions', { params, signal }),
