@@ -10,6 +10,7 @@
   --axis: #c3c2b7;
   --border: rgba(11, 11, 11, 0.1);
   --accent: #2a78d6;
+  --on-accent: #fff;
   --accent-weak: #cde2fb;
   --map-nodata: #e8e7e1;
   --map-stroke: #fcfcfb;
@@ -74,7 +75,7 @@ h4 { font-size: 12px; color: var(--text-2); text-transform: uppercase; letter-sp
 .brand p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .icon { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .btn.icon { width: 36px; height: 36px; }
-.theme-toggle { display: inline-flex; align-items: center; gap: 6px; height: 36px; }
+.theme-switch { flex: none; }
 
 /* --- Bal oldali navigáció --- */
 .app-body { display: flex; align-items: flex-start; }
@@ -98,7 +99,8 @@ h4 { font-size: 12px; color: var(--text-2); text-transform: uppercase; letter-sp
 }
 @media (max-width: 700px) {
   .app-main { padding-left: 16px; padding-right: 16px; }
-  .theme-toggle span, .brand p { display: none; }
+  .brand p { display: none; }
+  .theme-switch button { padding: 5px 7px; font-size: 12px; }
 }
 
 /* --- Kártyák, elrendezés --- */
@@ -128,7 +130,7 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .btn { height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); cursor: pointer; white-space: nowrap; }
 .btn:hover:not(:disabled) { background: var(--surface-2); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
 .btn.primary:hover:not(:disabled) { filter: brightness(1.08); background: var(--accent); }
 .btn.ghost { background: none; }
 .btn.link { border: 0; background: none; padding: 0; height: auto; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
@@ -365,7 +367,7 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 
 /* --- Helyszínek kijelölése --- */
 .card-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.btn.toggle.active { background: var(--accent); color: #fff; border-color: transparent; }
+.btn.toggle.active { background: var(--accent); color: var(--on-accent); border-color: transparent; }
 .loc-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .pick { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: none; font-size: 12px; color: var(--text-2); cursor: pointer; }
 .pick:hover { background: var(--surface-2); color: var(--text); }
@@ -395,3 +397,32 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .corr-cell { width: 64px; height: 40px; text-align: center; border-radius: 4px; font-variant-numeric: tabular-nums; font-weight: 600; }
 .corr-cell.self { background: var(--surface-2); color: var(--muted); font-weight: 400; }
 .corr-cell.na { color: var(--muted); }
+
+/* --- Alkony téma: a háttér RGB(25, 10, 35), a kiemelések a paletta meleg árnyalatai --- */
+:root[data-theme='dusk'] {
+  color-scheme: dark;
+  --page: rgb(25, 10, 35);
+  --surface: #26122f;
+  --surface-2: #35193d;
+  --text: #fbf2ec;
+  --text-2: #dcc6cf;
+  --muted: #a98d9d;
+  --grid: #3f2247;
+  --axis: #5d3a5c;
+  --border: rgba(249, 248, 113, 0.14);
+  --accent: #f5b259;
+  --on-accent: #190a23;
+  --accent-weak: #562644;
+  --map-nodata: #3b2143;
+  --map-stroke: #26122f;
+  --success-text: #3ccf3c;
+  --warning: #f9f871;
+  --serious: #d37558;
+  --critical: #ff8a80;
+  --forecast: rgba(245, 178, 89, 0.1);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+:root[data-theme='dusk'] .brand-mark { background: radial-gradient(circle, var(--surface) 0 28%, #d37558 30%, #f5b259 70%, #f9f871); }
+:root[data-theme='dusk'] .side-tab.active { background: #562644; }
+:root[data-theme='dusk'] .side-tab.active .icon, :root[data-theme='dusk'] .crumb:not(:disabled), :root[data-theme='dusk'] .btn.link { color: #f5b259; }
+:root[data-theme='dusk'] .chip { background: #9a4655; }

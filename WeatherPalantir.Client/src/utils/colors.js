@@ -6,7 +6,8 @@ import { getTheme } from './theme.js';
 const LIGHT = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
 const DARK = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
 
-export const isDark = () => getTheme() === 'dark';
+/** Sötét felületű téma (sötét és alkony): a világosabb, sötét háttérre hangolt színlépcsők érvényesek. */
+export const isDark = () => getTheme() !== 'light';
 
 export const categorical = () => (isDark() ? DARK : LIGHT);
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from './api.js';
 import { useFetch } from './hooks/useFetch.js';
-import { setTheme, useTheme } from './utils/theme.js';
+import { setTheme, THEMES, useTheme } from './utils/theme.js';
 import AnalysisView from './views/AnalysisView.jsx';
 import NewLocationView from './views/NewLocationView.jsx';
 import ErrorLogView from './views/ErrorLogView.jsx';
@@ -73,21 +73,13 @@ export default function App() {
             <p>Meteorológiai adattárház és elemző felület · {current.label}</p>
           </div>
         </div>
-        <button
-          className="btn theme-toggle"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          aria-label={theme === 'dark' ? 'Váltás világos módra' : 'Váltás sötét módra'}
-          title={theme === 'dark' ? 'Világos mód' : 'Sötét mód'}
-        >
-          <Icon
-            d={
-              theme === 'dark'
-                ? 'M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6 4.2 4.2M19.8 19.8l-1.4-1.4M5.6 18.4l-1.4 1.4M19.8 4.2l-1.4 1.4M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'
-                : 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z'
-            }
-          />
-          <span>{theme === 'dark' ? 'Világos' : 'Sötét'}</span>
-        </button>
+        <div className="segmented theme-switch" role="radiogroup" aria-label="Téma">
+          {THEMES.map((th) => (
+            <button key={th.key} role="radio" aria-checked={theme === th.key} className={theme === th.key ? 'active' : ''} onClick={() => setTheme(th.key)}>
+              {th.label}
+            </button>
+          ))}
+        </div>
       </header>
 
       <div className="app-body">

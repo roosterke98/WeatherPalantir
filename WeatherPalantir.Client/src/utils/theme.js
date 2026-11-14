@@ -1,16 +1,22 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * Világos / sötét téma. A választás a <html data-theme> attribútumba kerül (a CSS változók ehhez igazodnak),
+ * Világos, sötét és „alkony” téma. A választás a <html data-theme> attribútumba kerül (a CSS változók ehhez igazodnak),
  * és a böngészőben megmarad. Ha a felhasználó még nem választott, a rendszer beállítását követi.
  */
 const KEY = 'wp-theme';
+
+export const THEMES = [
+  { key: 'light', label: 'Világos' },
+  { key: 'dark', label: 'Sötét' },
+  { key: 'dusk', label: 'Alkony' },
+];
 const listeners = new Set();
 
 function readStored() {
   try {
     const v = localStorage.getItem(KEY);
-    return v === 'light' || v === 'dark' ? v : null;
+    return THEMES.some((th) => th.key === v) ? v : null;
   } catch {
     return null;
   }
