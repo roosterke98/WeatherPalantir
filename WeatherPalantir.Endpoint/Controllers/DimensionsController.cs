@@ -32,10 +32,18 @@ public sealed class DimensionsController(IDimensionRepository dimensions, IRegio
     public async Task<ActionResult<IReadOnlyList<RegionDto>>> GetRegions(CancellationToken ct) =>
         Ok(await dimensions.GetRegionsAsync(ct));
 
-    /// <summary>A régiók (megyék, tartományok) határai GeoJSON formátumban a térképes megjelenítéshez.</summary>
+    /// <summary>
+    /// A régiók (megyék, tartományok) határai GeoJSON formátumban a térképes megjelenítéshez.
+    /// A <c>countries</c> paraméterben (vesszővel elválasztott alpha-3 kódok) megadott országokra szűkíthető,
+    /// így a kliens csak a ténylegesen megjelenített országok határait tölti le.
+    /// </summary>
     [HttpGet("regions/geojson")]
-    [ResponseCache(Duration = 3600)]
-    public async Task<IActionResult> GetRegionGeoJson(CancellationToken ct) => Ok(await geoJson.GetFeatureCollectionAsync(ct));
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> GetRegionGeoJson([FromQuery] string? countries, CancellationToken ct)
+    {
+        var codes = (countries ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return Ok(await geoJson.GetFeatureCollectionAsync(codes, ct));
+    }
 
     [HttpGet("conditions")]
     public async Task<ActionResult<IReadOnlyList<WeatherConditionDto>>> GetConditions(CancellationToken ct) =>

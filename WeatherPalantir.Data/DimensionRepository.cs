@@ -7,7 +7,9 @@ public interface IDimensionRepository
 {
     Task<IReadOnlyList<LocationDto>> GetLocationsAsync(CancellationToken ct);
     Task<IReadOnlyList<RegionDto>> GetRegionsAsync(CancellationToken ct);
-    Task<IReadOnlyList<(RegionDto Region, string Wkt)>> GetRegionBoundariesAsync(double reduceMeters, CancellationToken ct);
+    /// <summary>Országonként a régiók aktuális állapotának olcsón számolható lenyomata (a határok beolvasása nélkül).</summary>
+    Task<IReadOnlyList<(string CountryCode, string Version)>> GetRegionVersionsAsync(CancellationToken ct);
+    Task<IReadOnlyList<(RegionDto Region, string Wkt)>> GetRegionBoundariesAsync(string countryCode, double reduceMeters, CancellationToken ct);
     Task<IReadOnlyList<WeatherConditionDto>> GetWeatherConditionsAsync(CancellationToken ct);
     /// <summary>Megkeresi azt a régiót (megye / tartomány), amelynek határán belül a pont esik.</summary>
     Task<RegionDto?> FindRegionAsync(double latitude, double longitude, CancellationToken ct);
@@ -44,17 +46,35 @@ public sealed class DimensionRepository(IDbConnectionFactory db) : IDimensionRep
         return (await conn.QueryAsync<RegionDto>(new CommandDefinition(sql, cancellationToken: ct))).ToList();
     }
 
-    public async Task<IReadOnlyList<(RegionDto Region, string Wkt)>> GetRegionBoundariesAsync(double reduceMeters, CancellationToken ct)
+    public async Task<IReadOnlyList<(string CountryCode, string Version)>> GetRegionVersionsAsync(CancellationToken ct)
+    {
+        const string sql = """
+            SELECT CAST(r.CountryCode AS nvarchar(3)) AS CountryCode, COUNT(*) AS Regions, MAX(r.RegionKey) AS MaxKey,
+                   CHECKSUM_AGG(CHECKSUM(r.RegionKey, r.RegionName)) AS NameSum
+            FROM dm.DimRegion r
+            WHERE r.CountryCode IS NOT NULL
+            GROUP BY r.CountryCode
+            ORDER BY r.CountryCode;
+            """;
+        await using var conn = await db.OpenAsync(ct);
+        var rows = await conn.QueryAsync(new CommandDefinition(sql, cancellationToken: ct));
+        return rows.Cast<IDictionary<string, object?>>()
+            .Select(r => ((string)r["CountryCode"]!, $"{r["Regions"]}-{r["MaxKey"]}-{r["NameSum"]}"))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<(RegionDto Region, string Wkt)>> GetRegionBoundariesAsync(string countryCode, double reduceMeters, CancellationToken ct)
     {
         var sql = $"""
             SELECT r.RegionKey, CAST(r.CountryCode AS nvarchar(3)) AS CountryCode, r.RegionName, {SqlFragments.CountryNameExpr} AS CountryName,
                    CASE WHEN @Reduce > 0 THEN r.Boundary.Reduce(@Reduce).STAsText() ELSE r.Boundary.STAsText() END AS Wkt
             FROM dm.DimRegion r
             LEFT JOIN meta.CountryDictionary cd ON cd.Alpha3Code = r.CountryCode
+            WHERE r.CountryCode = @CountryCode
             ORDER BY r.RegionKey;
             """;
         await using var conn = await db.OpenAsync(ct);
-        var rows = await conn.QueryAsync(new CommandDefinition(sql, new { Reduce = reduceMeters }, commandTimeout: 120, cancellationToken: ct));
+        var rows = await conn.QueryAsync(new CommandDefinition(sql, new { Reduce = reduceMeters, CountryCode = countryCode }, commandTimeout: 120, cancellationToken: ct));
         return rows.Cast<IDictionary<string, object?>>()
             .Select(r => (new RegionDto((int)r["RegionKey"]!, (string)r["CountryCode"]!, (string)r["RegionName"]!, r["CountryName"] as string),
                           (string)r["Wkt"]!))
