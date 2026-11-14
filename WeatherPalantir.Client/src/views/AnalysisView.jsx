@@ -20,12 +20,10 @@ import TrendChart from '../components/TrendChart.jsx';
 import PivotTable from '../components/PivotTable.jsx';
 import LocationPicker from '../components/LocationPicker.jsx';
 
-/** A kiválasztott paraméter négy nézete egy kártyán, füleken. */
-const VIEWS = [
-  { key: 'series', label: 'Idősor' },
-  { key: 'heatmap', label: 'Hőtérkép' },
-  { key: 'yoy', label: 'Éves összehasonlítás' },
-  { key: 'trend', label: 'Éves trend' },
+/** A térkép alatti fülek. */
+const TABS = [
+  { key: 'measure', label: 'Paraméter elemzése' },
+  { key: 'compare', label: 'Paraméterek összehasonlítása' },
 ];
 
 const NO_FEATURES = [];
@@ -35,7 +33,7 @@ export default function AnalysisView({ meta }) {
   const measuresByKey = useMemo(() => Object.fromEntries(meta.measures.map((m) => [m.key, m])), [meta.measures]);
   const measure = measuresByKey[state.measure];
   const [compareMeasures, setCompareMeasures] = useState(['temperature', 'precipitation', 'windSpeed', 'cloudCover']);
-  const [view, setView] = useState('series');
+  const [tab, setTab] = useState('measure');
   const [selectMode, setSelectMode] = useState(false);
 
   // Másodlagos paraméter csak olyan lehet, amely vizuálisan nem takarja az elsődlegeset:
@@ -113,23 +111,6 @@ export default function AnalysisView({ meta }) {
     () => [...new Set([...state.regions, ...meta.locations.filter((l) => state.locations.includes(l.locationKey)).map((l) => l.regionKey)])],
     [state.regions, state.locations, meta.locations],
   );
-  const picker = (
-    <LocationPicker
-      locations={pickable}
-      selected={state.locations}
-      colorOrder={state.level === 'location' ? order : null}
-      onToggle={(k) => toggleLocations([k])}
-      onClear={() => dispatch({ type: 'clearLocations' })}
-    />
-  );
-  const viewHint = {
-    series: needsWind
-      ? 'Az iránytű a csúszka aktuális periódusát mutatja'
-      : `${state.grain !== 'hour' ? 'Kattintás: lefúrás a periódusba · ' : ''}Húzás: időszak kijelölése`,
-    heatmap: `A felbontás az időbeli szintet követi${heatmapMode(state.grain) !== 'hour' ? ' · Kattintás egy cellára: lefúrás' : ''}`,
-    yoy: 'A teljes betöltött időszak, havi bontásban · Kattintás egy évre: kijelölés · Kattintás a grafikonra: lefúrás a hónapba',
-    trend: 'A teljes betöltött időszak, éves bontásban · Kattintás: lefúrás az évre',
-  }[view];
 
   return (
     <div className="analysis">
@@ -208,72 +189,111 @@ export default function AnalysisView({ meta }) {
         </div>
       </section>
 
-      <section className="card">
-        <div className="card-head">
-          <h2>{measure.label} ({measure.unit})</h2>
-          <span className="muted small">{viewHint}</span>
+      <div className="tab-bar">
+        <div className="tabs" role="tablist" aria-label="Elemzési nézetek">
+          {TABS.map((t) => (
+            <button key={t.key} role="tab" aria-selected={tab === t.key} className={tab === t.key ? 'tab active' : 'tab'} onClick={() => setTab(t.key)}>
+              {t.label}
+            </button>
+          ))}
         </div>
-        <div className="viz-tools">
-          <div className="segmented" role="tablist" aria-label="A paraméter nézetei">
-            {VIEWS.map((v) => (
-              <button key={v.key} role="tab" aria-selected={view === v.key} className={view === v.key ? 'active' : ''} onClick={() => setView(v.key)}>
-                {v.key === 'series' && needsWind ? 'Szélrózsa és iránytű' : v.label}
-              </button>
-            ))}
-          </div>
-          {picker}
-        </div>
-        {view === 'heatmap' ? (
-          <Heatmap params={baseParams} paramsKey={key} measure={measure} order={order} onDrill={drillTime} />
-        ) : view === 'yoy' ? (
-          <YearOverYearChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
-        ) : view === 'trend' ? (
-          <TrendChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
-        ) : needsWind ? (
-          <div className="wind-grid">
-            <WindRose data={windRose.data} loading={windRose.loading} />
-            <CompassPanel cube={cube.data} period={currentPeriod} grain={state.grain} order={order} />
-          </div>
-        ) : (
-          <TimeSeriesChart
-            cube={cube.data}
-            loading={cube.loading}
-            measure={measure}
-            grain={state.grain}
-            order={order}
-            currentPeriod={currentPeriod}
-            forecastStart={forecastStart}
-            onDrill={(period) => drillTime(period)}
-            onBrush={(start, end) => dispatch({ type: 'brushTime', start, end })}
-            onMemberClick={(m) => drillGeo(m.key)}
-            onPeriodSelect={(p) => {
-              const i = periods.findIndex((x) => +x === +p);
-              if (i >= 0) setPeriodIdx(i);
-            }}
-          />
-        )}
-      </section>
-
-      <section className="card">
-        <div className="card-head">
-          <h2>Paraméterek összehasonlítása</h2>
-          <span className="muted small">
-            Közös időtengely, paraméterenként külön értéktengely{state.grain !== 'hour' ? ' · Kattintás: lefúrás a periódusba' : ''}
-          </span>
-        </div>
-        <div className="viz-tools">{picker}</div>
-        <MultiMeasureChart
-          params={baseParams}
-          paramsKey={key}
-          measures={meta.measures}
-          selected={compareMeasures}
-          onSelectedChange={setCompareMeasures}
-          order={order}
-          forecastStart={forecastStart}
-          onDrill={(period) => drillTime(period)}
+        <LocationPicker
+          locations={pickable}
+          selected={state.locations}
+          colorOrder={state.level === 'location' ? order : null}
+          onToggle={(k) => toggleLocations([k])}
+          onClear={() => dispatch({ type: 'clearLocations' })}
         />
-      </section>
+      </div>
 
+      {tab === 'measure' && (
+        <div role="tabpanel" aria-label="Paraméter elemzése">
+          <section className="card">
+            <div className="card-head">
+              <h2>{needsWind ? 'Szélirány – szélrózsa és iránytű' : `${measure.label} (${measure.unit}) – idősor`}</h2>
+              <span className="muted small">
+                {needsWind
+                  ? 'Az iránytű a csúszka aktuális periódusát mutatja'
+                  : `${state.grain !== 'hour' ? 'Kattintás: lefúrás a periódusba · ' : ''}Húzás: időszak kijelölése`}
+              </span>
+            </div>
+            {needsWind ? (
+              <div className="wind-grid">
+                <WindRose data={windRose.data} loading={windRose.loading} />
+                <CompassPanel cube={cube.data} period={currentPeriod} grain={state.grain} order={order} />
+              </div>
+            ) : (
+              <TimeSeriesChart
+                cube={cube.data}
+                loading={cube.loading}
+                measure={measure}
+                grain={state.grain}
+                order={order}
+                currentPeriod={currentPeriod}
+                forecastStart={forecastStart}
+                onDrill={(period) => drillTime(period)}
+                onBrush={(start, end) => dispatch({ type: 'brushTime', start, end })}
+                onMemberClick={(m) => drillGeo(m.key)}
+                onPeriodSelect={(p) => {
+                  const i = periods.findIndex((x) => +x === +p);
+                  if (i >= 0) setPeriodIdx(i);
+                }}
+              />
+            )}
+          </section>
+
+          <section className="card">
+            <div className="card-head">
+              <h2>Hőtérkép – {measure.label} ({measure.unit})</h2>
+              <span className="muted small">
+                A felbontás az időbeli szintet követi{heatmapMode(state.grain) !== 'hour' ? ' · Kattintás egy cellára: lefúrás' : ''}
+              </span>
+            </div>
+            <Heatmap params={baseParams} paramsKey={key} measure={measure} order={order} onDrill={drillTime} />
+          </section>
+
+          <section className="card">
+            <div className="card-head">
+              <h2>Éves összehasonlítás – {measure.label} ({measure.unit})</h2>
+              <span className="muted small">
+                A teljes betöltött időszak, havi bontásban · Kattintás egy évre: kijelölés · Kattintás a grafikonra: lefúrás a hónapba
+              </span>
+            </div>
+            <YearOverYearChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
+          </section>
+
+          <section className="card">
+            <div className="card-head">
+              <h2>Éves trend – {measure.label} ({measure.unit})</h2>
+              <span className="muted small">A teljes betöltött időszak, éves bontásban · Kattintás: lefúrás az évre</span>
+            </div>
+            <TrendChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
+          </section>
+        </div>
+      )}
+
+      {tab === 'compare' && (
+        <div role="tabpanel" aria-label="Paraméterek összehasonlítása">
+          <section className="card">
+            <div className="card-head">
+              <h2>Paraméterek összehasonlítása</h2>
+              <span className="muted small">
+                Közös időtengely, paraméterenként külön értéktengely{state.grain !== 'hour' ? ' · Kattintás: lefúrás a periódusba' : ''}
+              </span>
+            </div>
+            <MultiMeasureChart
+              params={baseParams}
+              paramsKey={key}
+              measures={meta.measures}
+              selected={compareMeasures}
+              onSelectedChange={setCompareMeasures}
+              order={order}
+              forecastStart={forecastStart}
+              onDrill={(period) => drillTime(period)}
+            />
+          </section>
+        </div>
+      )}
 
       <section className="card">
         <div className="card-head">
@@ -287,7 +307,6 @@ export default function AnalysisView({ meta }) {
           onToggle={(k) => dispatch({ type: 'toggleCondition', key: k })}
         />
       </section>
-
 
       <section className="card">
         <div className="card-head">

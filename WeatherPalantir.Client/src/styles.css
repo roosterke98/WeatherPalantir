@@ -377,3 +377,11 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .olap-bar { position: relative; }
 .olap-bar .popover-wrap { position: static; }
 .olap-bar .popover { max-width: 100%; flex-wrap: wrap; }
+
+/* --- Fülek a térkép alatt --- */
+.tab-bar { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.tabs { display: flex; gap: 4px; }
+.tab { border: 0; background: none; padding: 10px 16px; font-weight: 600; color: var(--text-2); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; border-radius: 8px 8px 0 0; }
+.tab:hover { background: var(--surface-2); color: var(--text); }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.tab-bar .loc-picker { padding-bottom: 8px; }
