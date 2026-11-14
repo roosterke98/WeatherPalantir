@@ -164,6 +164,25 @@ export function reducer(state, action) {
       return state;
     }
 
+    /**
+     * Helyszínek kijelölése (a térkép kijelölő módjában vagy a grafikonok helyszínválasztójában):
+     * a megadott helyszínek be- vagy kikerülnek a vizsgált halmazból. Üres halmaz = minden helyszín.
+     * Kijelölés esetén a bontás helyszín szintű, hogy minden kijelölt helyszín külön sorozat legyen.
+     */
+    case 'toggleLocations': {
+      const keys = action.keys.map(Number);
+      if (!keys.length) return state;
+      const allIn = keys.every((k) => state.locations.includes(k));
+      const locations = allIn ? state.locations.filter((k) => !keys.includes(k)) : [...new Set([...state.locations, ...keys])];
+      const geoPath = state.geoPath.filter((p) => p.level !== 'location');
+      return { ...withPath(state, geoPath, locations.length ? 'location' : state.level), locations };
+    }
+
+    case 'clearLocations': {
+      const geoPath = state.geoPath.filter((p) => p.level !== 'location');
+      return withPath(state, geoPath, state.level);
+    }
+
     // Felgöngyölítés a morzsamenü egy szintjére.
     case 'rollUpGeo': {
       const geoPath = state.geoPath.slice(0, action.index);

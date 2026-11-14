@@ -12,7 +12,7 @@ import { useTheme } from '../utils/theme.js';
  *  - jel (glyph): szélirány esetén irányvonalak, csapadéknál buborékok,
  *  - a csúszka aktuális periódusának értékei jelennek meg, a színskála a teljes időszakra rögzített.
  */
-export default function ChoroplethMap({ geo, locations, cube, loading, level, period, measure, secondary, selectedRegions, onRegionClick, onLocationClick }) {
+export default function ChoroplethMap({ geo, locations, cube, loading, level, period, measure, secondary, selectedRegions, selectedLocations = [], selectMode = false, onRegionClick, onLocationClick }) {
   const [wrapRef, width] = useWidth(640);
   const svgRef = useRef(null);
   const tipRef = useRef(null);
@@ -123,7 +123,7 @@ export default function ChoroplethMap({ geo, locations, cube, loading, level, pe
       .selectAll('circle')
       .data(locations.filter((l) => l.isActive), (l) => l.locationKey)
       .join('circle')
-      .attr('class', 'location')
+      .attr('class', (l) => (selectedLocations.includes(l.locationKey) ? 'location selected' : 'location'))
       .attr('cx', (l) => projection([l.longitude, l.latitude])[0])
       .attr('cy', (l) => projection([l.longitude, l.latitude])[1])
       .attr('r', level === 'location' ? 8 : 4.5)
@@ -137,16 +137,22 @@ export default function ChoroplethMap({ geo, locations, cube, loading, level, pe
         const row = locRows.get(String(l.locationKey));
         const lines = [`<strong>${l.name ?? 'Helyszín'}</strong>`, `<span class="muted">${l.regionName ?? ''}, ${l.countryName ?? ''}</span>`];
         if (row) for (const m of [fillMeasure, glyphMeasure].filter(Boolean)) lines.push(`${m.label}: <b>${formatValue(row.values[m.key], m)}</b>`);
-        else lines.push('<span class="muted">Kattintás: szeletelés erre a helyszínre</span>');
+        lines.push(
+          `<span class="muted">${
+            selectMode
+              ? selectedLocations.includes(l.locationKey) ? 'Kattintás: kivétel a kijelölésből' : 'Kattintás: hozzáadás a kijelöléshez'
+              : 'Kattintás: lefúrás a helyszínig'
+          }</span>`,
+        );
         showTip(tip, event, wrapRef.current, lines.join('<br>'));
       })
       .on('pointerleave', () => tip.style('opacity', 0));
 
     drawLegend(svg.select('g.legend'), width, height, color, fillMeasure, glyphMeasure, noData);
-  }, [geo, locations, rows, rowsAtPeriod, level, projection, fillMeasure, glyphMeasure, selectedRegions, width, height, onRegionClick, onLocationClick, wrapRef, theme]);
+  }, [geo, locations, rows, rowsAtPeriod, level, projection, fillMeasure, glyphMeasure, selectedRegions, selectedLocations, selectMode, width, height, onRegionClick, onLocationClick, wrapRef, theme]);
 
   return (
-    <div className="map-wrap" ref={wrapRef}>
+    <div className={selectMode ? 'map-wrap selecting' : 'map-wrap'} ref={wrapRef}>
       <div className="map-period">{period ? formatPeriod(period, cube?.grain) : ''}</div>
       {loading && <div className="overlay-loading">Frissítés…</div>}
       <svg ref={svgRef} width={width} height={height + legendH} role="img" aria-label={`Térkép: ${measure.label}`}>

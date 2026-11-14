@@ -18,6 +18,7 @@ import ConditionTimeline from '../components/ConditionTimeline.jsx';
 import YearOverYearChart from '../components/YearOverYearChart.jsx';
 import TrendChart from '../components/TrendChart.jsx';
 import PivotTable from '../components/PivotTable.jsx';
+import LocationPicker from '../components/LocationPicker.jsx';
 
 /** A kiválasztott paraméter négy nézete egy kártyán, füleken. */
 const VIEWS = [
@@ -33,6 +34,7 @@ export default function AnalysisView({ meta }) {
   const measure = measuresByKey[state.measure];
   const [compareMeasures, setCompareMeasures] = useState(['temperature', 'precipitation', 'windSpeed', 'cloudCover']);
   const [view, setView] = useState('series');
+  const [selectMode, setSelectMode] = useState(false);
 
   // Másodlagos paraméter csak olyan lehet, amely vizuálisan nem takarja az elsődlegeset:
   // színezés (fill) mellé jel (glyph: irányvonal, buborék), jel mellé színezés.
@@ -99,6 +101,22 @@ export default function AnalysisView({ meta }) {
     };
   }, [meta.geo, meta.locations, state.mapCountries, focusCountry, focusRegion]);
 
+  // Helyszínek kijelölése: a térkép kijelölő módjában és a grafikonok helyszínválasztójában ugyanaz a halmaz.
+  const pickable = useMemo(() => visibleGeo.locations.filter((l) => l.isActive).sort((a, b) => a.locationKey - b.locationKey), [visibleGeo]);
+  const toggleLocations = (keys) => dispatch({ type: 'toggleLocations', keys });
+  const highlightedRegions = useMemo(
+    () => [...new Set([...state.regions, ...meta.locations.filter((l) => state.locations.includes(l.locationKey)).map((l) => l.regionKey)])],
+    [state.regions, state.locations, meta.locations],
+  );
+  const picker = (
+    <LocationPicker
+      locations={pickable}
+      selected={state.locations}
+      colorOrder={state.level === 'location' ? order : null}
+      onToggle={(k) => toggleLocations([k])}
+      onClear={() => dispatch({ type: 'clearLocations' })}
+    />
+  );
   const viewHint = {
     series: needsWind
       ? 'Az iránytű a csúszka aktuális periódusát mutatja'
@@ -121,13 +139,27 @@ export default function AnalysisView({ meta }) {
         <div className="card map-card">
           <div className="card-head">
             <h2>Térkép – {measure.label}{secondary ? ` + ${secondary.label}` : ''}</h2>
-            <span className="muted small">
-              {!focusCountry && state.mapCountries.length > 1
-                ? 'Kattintás: szűkítés az országra'
-                : !focusRegion
-                  ? 'Kattintás: szűkítés a megyére / tartományra'
-                  : 'Kattintás egy helyszínre: szeletelés'}
-            </span>
+            <div className="card-tools">
+              <span className="muted small">
+                {selectMode
+                  ? 'Kattintás egy megyére vagy helyszínre: kijelölés / kivétel'
+                  : `Kattintás egy helyszínre: lefúrás a helyszínig · ${
+                      !focusCountry && state.mapCountries.length > 1 ? 'országra: szűkítés' : 'megyére / tartományra: szűkítés'
+                    }`}
+              </span>
+              {state.locations.length > 0 && selectMode && (
+                <button className="btn small" onClick={() => dispatch({ type: 'clearLocations' })}>Kijelölés törlése</button>
+              )}
+              <button
+                className={selectMode ? 'btn small toggle active' : 'btn small toggle'}
+                aria-pressed={selectMode}
+                title="Bekapcsolva a térkép elemeire kattintva jelölheted ki a vizsgált helyszíneket"
+                onClick={() => setSelectMode((m) => !m)}
+              >
+                {selectMode ? '✓ Helyszínek kijelölése' : 'Helyszínek kijelölése'}
+                {state.locations.length > 0 && selectMode ? ` (${state.locations.length})` : ''}
+              </button>
+            </div>
           </div>
           <ChoroplethMap
             geo={visibleGeo.geo}
@@ -138,9 +170,17 @@ export default function AnalysisView({ meta }) {
             period={currentPeriod}
             measure={measure}
             secondary={secondary}
-            selectedRegions={state.regions}
-            onRegionClick={(feature) => dispatch({ type: 'mapClick', path: pathFor('region', feature.properties.regionKey, meta) })}
-            onLocationClick={(loc) => dispatch({ type: 'mapClick', path: pathFor('location', loc.locationKey, meta) })}
+            selectedRegions={highlightedRegions}
+            selectedLocations={state.locations}
+            selectMode={selectMode}
+            onRegionClick={(feature) =>
+              selectMode
+                ? toggleLocations(pickable.filter((l) => l.regionKey === feature.properties.regionKey).map((l) => l.locationKey))
+                : dispatch({ type: 'mapClick', path: pathFor('region', feature.properties.regionKey, meta) })
+            }
+            onLocationClick={(loc) =>
+              selectMode ? toggleLocations([loc.locationKey]) : dispatch({ type: 'mapClick', path: pathFor('location', loc.locationKey, meta) })
+            }
           />
           <TimeSlider periods={periods} index={periodIdx} onChange={setPeriodIdx} grain={state.grain} forecastStart={forecastStart} />
         </div>
@@ -175,6 +215,7 @@ export default function AnalysisView({ meta }) {
               </button>
             ))}
           </div>
+          {picker}
         </div>
         {view === 'heatmap' ? (
           <Heatmap params={baseParams} paramsKey={key} measure={measure} order={order} onDrill={drillTime} />
@@ -214,6 +255,7 @@ export default function AnalysisView({ meta }) {
             Közös időtengely, paraméterenként külön értéktengely{state.grain !== 'hour' ? ' · Kattintás: lefúrás a periódusba' : ''}
           </span>
         </div>
+        <div className="viz-tools">{picker}</div>
         <MultiMeasureChart
           params={baseParams}
           paramsKey={key}

@@ -10,7 +10,9 @@ import { availableCountries, MAX_MAP_COUNTRIES } from '../views/analysisState.js
 export default function OlapBar({ state, dispatch, meta }) {
   const regionName = (k) => meta.regions.find((r) => r.regionKey === k)?.regionName ?? k;
   const manualRegions = state.regions.filter((k) => !state.geoPath.some((p) => p.level === 'region' && Number(p.key) === k));
-  const hasFilters = state.geoPath.length || manualRegions.length || state.conditions.length || state.kind !== 'all';
+  const pickedLocations = state.locations.filter((k) => !state.geoPath.some((p) => p.level === 'location' && Number(p.key) === k));
+  const locationName = (k) => meta.locations.find((l) => l.locationKey === k)?.name ?? k;
+  const hasFilters = state.geoPath.length || manualRegions.length || pickedLocations.length || state.conditions.length || state.kind !== 'all';
   const prevTime = state.timeStack[state.timeStack.length - 1];
   const countries = availableCountries(meta);
   const countryName = (c) => countries.find((x) => x.code === c)?.name ?? c;
@@ -90,6 +92,11 @@ export default function OlapBar({ state, dispatch, meta }) {
         {manualRegions.map((k) => (
           <Chip key={`r${k}`} onRemove={() => dispatch({ type: 'toggleRegion', key: k })}>
             {regionName(k)}
+          </Chip>
+        ))}
+        {pickedLocations.map((k) => (
+          <Chip key={`l${k}`} onRemove={() => dispatch({ type: 'toggleLocations', keys: [k] })}>
+            {locationName(k)}
           </Chip>
         ))}
         {state.conditions.map((k) => (

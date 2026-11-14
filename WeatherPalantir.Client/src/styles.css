@@ -363,3 +363,13 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .analysis-sticky .olap-bar { margin: 0; }
 @media (max-width: 900px), (max-height: 620px) { .analysis-sticky { position: static; } }
 .app-body { overflow-x: clip; }
+
+/* --- Helyszínek kijelölése --- */
+.card-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.btn.toggle.active { background: var(--accent); color: #fff; border-color: transparent; }
+.loc-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.pick { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: none; font-size: 12px; color: var(--text-2); cursor: pointer; }
+.pick:hover { background: var(--surface-2); color: var(--text); }
+.pick.active { background: var(--accent-weak); border-color: var(--accent); color: var(--text); font-weight: 600; }
+.location.selected { stroke: var(--accent); stroke-width: 3.5; }
+.map-wrap.selecting .region, .map-wrap.selecting .location { cursor: copy; }
