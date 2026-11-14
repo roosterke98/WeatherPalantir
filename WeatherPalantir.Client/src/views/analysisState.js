@@ -147,20 +147,20 @@ export function reducer(state, action) {
 
     /**
      * Kattintás a térképen egy régióra vagy helyszínre (action.path: ország › régió [› helyszín]):
-     *  1. ha több ország látszik, először csak a kattintott ország marad a térképen,
-     *  2. ha már egy ország látszik, a régióra (megyére) szűkít,
-     *  3. ha a régió már ki van választva, a helyszínre kattintás a helyszínre szeletel.
+     *  - helyszínre kattintva egy lépésben a helyszínig fúr le (a térkép a helyszín régiójára közelít),
+     *  - régióra kattintva: ha több ország látszik, először csak a kattintott ország marad a térképen,
+     *    ha már egy ország látszik, a régióra (megyére) szűkít.
      */
     case 'mapClick': {
       const [country, region, location] = action.path;
       if (!country) return state;
+      if (location) return withPath(state, [country, region, location], 'location');
       const focusedCountry = state.geoPath.find((p) => p.level === 'country');
       const focusedRegion = state.geoPath.find((p) => p.level === 'region');
       if (!focusedCountry && state.mapCountries.length > 1) {
         return withPath(state, [country], ['country', 'all'].includes(state.level) ? 'region' : state.level);
       }
       if (region && focusedRegion?.key !== region.key) return withPath(state, [country, region], 'location');
-      if (location) return withPath(state, [country, region, location], 'location');
       return state;
     }
 
@@ -168,7 +168,10 @@ export function reducer(state, action) {
     case 'rollUpGeo': {
       const geoPath = state.geoPath.slice(0, action.index);
       const last = geoPath[geoPath.length - 1];
-      return withPath(state, geoPath, last ? NEXT_LEVEL[last.level] : rootLevel(state));
+      // A lefúrásból származó régió-szűrő a felgöngyölítéssel megszűnik.
+      const drilled = state.geoPath.find((p) => p.level === 'region');
+      const base = drilled ? { ...state, regions: state.regions.filter((r) => r !== Number(drilled.key)) } : state;
+      return withPath(base, geoPath, last ? NEXT_LEVEL[last.level] : rootLevel(state));
     }
 
     // Ország hozzáadása a térképhez (legfeljebb 3) – az összes hozzáadott ország látszik.
