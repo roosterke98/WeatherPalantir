@@ -352,13 +352,12 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .legend .btn.small { height: 24px; }
 
 /* --- Ragadós szűrőfejléc --- */
-.analysis-sticky {
-  position: sticky; top: 58px; z-index: 12; margin: -16px 0 16px; padding: 10px 0 8px;
-  background: var(--surface);
-  /* A háttér a tartalom szélességén túl, a lap teljes szélességében (nyitott menünél a menüig) fut. */
-  box-shadow: 0 0 0 100vmax var(--surface); clip-path: inset(0 -100vmax -12px);
+.analysis-sticky { position: sticky; top: 58px; z-index: 12; margin: -16px 0 16px; padding: 10px 0 8px; }
+/* A háttér a tartalom szélességén túl, a lap teljes szélességében (nyitott menünél a menüig) fut. */
+.analysis-sticky::before {
+  content: ''; position: absolute; z-index: -1; top: 0; bottom: 0; left: -100vmax; right: -100vmax;
+  background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
-.analysis-sticky::after { content: ''; position: absolute; left: -100vmax; right: -100vmax; bottom: -1px; height: 1px; background: var(--border); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12); }
 .analysis-sticky .filter-bar { border: 0; box-shadow: none; padding: 0; margin-bottom: 10px; background: none; border-radius: 0; }
 .analysis-sticky .olap-bar { margin: 0; }
 @media (max-width: 900px), (max-height: 620px) { .analysis-sticky { position: static; } }
@@ -373,3 +372,8 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .pick.active { background: var(--accent-weak); border-color: var(--accent); color: var(--text); font-weight: 600; }
 .location.selected { stroke: var(--accent); stroke-width: 3.5; }
 .map-wrap.selecting .region, .map-wrap.selecting .location { cursor: copy; }
+
+/* A régiószűrő lenyíló menüje a sáv teljes szélességéhez igazodik, így nem lóg ki a lapról. */
+.olap-bar { position: relative; }
+.olap-bar .popover-wrap { position: static; }
+.olap-bar .popover { max-width: 100%; flex-wrap: wrap; }
