@@ -31,6 +31,10 @@ export const WMO_HU = {
   99: 'Zivatar erős jégesővel',
 };
 
+/** A súlyossági csoportok sorrendje és állapotszínei. */
+export const SEVERITIES = ['Low', 'Mild', 'Moderate', 'Severe', 'Extreme'];
+export const SEVERITY_COLORS = { Low: '#0ca30c', Mild: '#fab219', Moderate: '#ec835a', Severe: '#d03b3b', Extreme: '#a3238e' };
+
 export const SEVERITY_HU = { Low: 'Alacsony', Mild: 'Enyhe', Moderate: 'Mérsékelt', Severe: 'Súlyos', Extreme: 'Extrém' };
 
 export const conditionLabel = (key, fallback) => (key == null ? 'Ismeretlen' : WMO_HU[key] ?? fallback ?? `WMO ${key}`);

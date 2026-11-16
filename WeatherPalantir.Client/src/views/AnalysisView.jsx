@@ -185,6 +185,11 @@ export default function AnalysisView({ meta }) {
               loading={conditions.loading}
               selected={state.conditions}
               onToggle={(k) => dispatch({ type: 'toggleCondition', key: k })}
+              onToggleMany={(keys) => {
+                const all = keys.every((k) => state.conditions.includes(k));
+                const conditions = all ? state.conditions.filter((k) => !keys.includes(k)) : [...new Set([...state.conditions, ...keys])];
+                dispatch({ type: 'set', patch: { conditions } });
+              }}
             />
           </div>
         </div>
