@@ -25,6 +25,8 @@ import CorrelationMatrix from '../components/CorrelationMatrix.jsx';
 const TABS = [
   { key: 'measure', label: 'Paraméter elemzése' },
   { key: 'compare', label: 'Paraméterek összehasonlítása' },
+  { key: 'conditions', label: 'Időjárási viszonyok megoszlása' },
+  { key: 'table', label: 'Aggregált táblázat' },
 ];
 
 const NO_FEATURES = [];
@@ -313,42 +315,54 @@ export default function AnalysisView({ meta }) {
               <h2>Korrelációs mátrix</h2>
               <span className="muted small">A fent kiválasztott paraméterek között, tagonként (helyszín / régió / ország)</span>
             </div>
-            <CorrelationMatrix params={baseParams} paramsKey={key} measures={meta.measures} selected={compareMeasures} order={order} focus={focus} onFocus={toggleFocus} />
+            <CorrelationMatrix
+              params={baseParams}
+              paramsKey={key}
+              measures={meta.measures}
+              selected={compareMeasures}
+              order={order}
+              focus={focus}
+              onFocus={toggleFocus}
+            />
           </section>
         </div>
       )}
 
-      <section className="card">
-        <div className="card-head">
-          <h2>Időjárási viszonyok megoszlása</h2>
-          <span className="muted small">Az órák aránya periódusonként · Súlyosság → viszony</span>
-        </div>
-        <ConditionTimeline
-          params={baseParams}
-          paramsKey={key}
-          selected={state.conditions}
-          onToggle={(k) => dispatch({ type: 'toggleCondition', key: k })}
-        />
-      </section>
+      {tab === 'conditions' && (
+        <section className="card" role="tabpanel" aria-label="Időjárási viszonyok megoszlása">
+          <div className="card-head">
+            <h2>Időjárási viszonyok megoszlása</h2>
+            <span className="muted small">Az órák aránya periódusonként · Súlyosság → viszony</span>
+          </div>
+          <ConditionTimeline
+            params={baseParams}
+            paramsKey={key}
+            selected={state.conditions}
+            onToggle={(k) => dispatch({ type: 'toggleCondition', key: k })}
+          />
+        </section>
+      )}
 
-      <section className="card">
-        <div className="card-head">
-          <h2>Aggregált táblázat</h2>
-          <span className="muted small">A teljes kijelölt időszakra, a választott földrajzi szinten</span>
-        </div>
-        <PivotTable
-          measures={meta.measures}
-          selected={state.tableMeasures}
-          onSelectedChange={(tableMeasures) => dispatch({ type: 'set', patch: { tableMeasures } })}
-          pivot={state.pivot}
-          onPivot={() => dispatch({ type: 'set', patch: { pivot: !state.pivot } })}
-          data={table.data}
-          loading={table.loading}
-          error={table.error}
-          level={state.level}
-          onMemberClick={(m) => drillGeo(m.key)}
-        />
-      </section>
+      {tab === 'table' && (
+        <section className="card" role="tabpanel" aria-label="Aggregált táblázat">
+          <div className="card-head">
+            <h2>Aggregált táblázat</h2>
+            <span className="muted small">A teljes kijelölt időszakra, a választott földrajzi szinten</span>
+          </div>
+          <PivotTable
+            measures={meta.measures}
+            selected={state.tableMeasures}
+            onSelectedChange={(tableMeasures) => dispatch({ type: 'set', patch: { tableMeasures } })}
+            pivot={state.pivot}
+            onPivot={() => dispatch({ type: 'set', patch: { pivot: !state.pivot } })}
+            data={table.data}
+            loading={table.loading}
+            error={table.error}
+            level={state.level}
+            onMemberClick={(m) => drillGeo(m.key)}
+          />
+        </section>
+      )}
     </div>
   );
 }

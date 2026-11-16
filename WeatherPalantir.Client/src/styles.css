@@ -446,3 +446,6 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .facet.dim, .compass.dim { opacity: 0.3; filter: grayscale(1); }
 .facet.dim .facet-title, .compass.dim .facet-title { color: var(--text); }
 .legend-item[aria-pressed='true'] { color: var(--text); font-weight: 600; }
+
+/* A négy fül keskeny képernyőn több sorba törik. */
+.tabs { flex-wrap: wrap; }
