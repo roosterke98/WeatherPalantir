@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import * as d3 from 'd3';
 import { api } from '../api.js';
 import { useFetch } from '../hooks/useFetch.js';
+import { activeFocus } from '../utils/colors.js';
 import { GRAINS } from '../utils/time.js';
 import { useTheme } from '../utils/theme.js';
 
@@ -29,7 +30,7 @@ function pearson(xs, ys) {
  * az elemzés aktuális időbeli szintjén számolva (pl. napi értékek között). Divergens színezés:
  * kék = ellentétes, piros = együtt mozgó, a semleges közép a 0.
  */
-export default function CorrelationMatrix({ params, paramsKey, measures, selected, order }) {
+export default function CorrelationMatrix({ params, paramsKey, measures, selected, order, focus, onFocus: onTitle }) {
   const theme = useTheme();
   const defs = selected.map((k) => measures.find((m) => m.key === k && m.key !== 'windDirection')).filter(Boolean);
   const selectedKey = defs.map((m) => m.key).join();
@@ -60,6 +61,7 @@ export default function CorrelationMatrix({ params, paramsKey, measures, selecte
 
   const drawn = (cube.data?.measures ?? []).map((k) => defs.find((d) => d.key === k)).filter(Boolean);
   const grainLabel = GRAINS.find((g) => g.key === (cube.data?.grain ?? params.grain))?.label.toLowerCase() ?? '';
+  const active = activeFocus(focus, panels);
   const textOn = (bg) => (d3.hsl(bg).l > 0.55 ? '#0b0b0b' : '#ffffff');
 
   if (defs.length < 2) return <div className="empty">A korrelációhoz válassz legalább két paramétert.</div>;
@@ -80,8 +82,14 @@ export default function CorrelationMatrix({ params, paramsKey, measures, selecte
           </div>
           <div className="corr-grid">
             {panels.map((p) => (
-              <figure key={p.key} className="facet">
-                {panels.length > 1 && <figcaption>{p.name}</figcaption>}
+              <figure key={p.key} className={active != null && p.key !== active ? 'facet dim' : 'facet'}>
+                {panels.length > 1 && (
+                  <figcaption>
+                    <button className="facet-title" onClick={() => onTitle(p.key)} title="Csak ennek a kiemelése · újabb kattintás: vissza">
+                      {p.name}
+                    </button>
+                  </figcaption>
+                )}
                 <table className="corr-table">
                   <thead>
                     <tr>

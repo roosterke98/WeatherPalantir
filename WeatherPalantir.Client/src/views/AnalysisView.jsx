@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { api, cubeParams } from '../api.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { createInitialState, memberOrder, pathFor, reducer } from './analysisState.js';
@@ -35,6 +35,12 @@ export default function AnalysisView({ meta }) {
   const measure = measuresByKey[state.measure];
   const [compareMeasures, setCompareMeasures] = useState(['temperature', 'precipitation', 'windSpeed', 'cloudCover']);
   const [tab, setTab] = useState('measure');
+
+  // Kiemelés: egy tag (helyszín / régió / ország) nevére kattintva minden elemnél csak az ő adatai maradnak
+  // kiemelve; bármelyik névre újra kattintva visszaáll az eredeti kijelölés.
+  const [focus, setFocus] = useState(null);
+  const toggleFocus = useCallback((memberKey) => setFocus((f) => (f != null ? null : String(memberKey))), []);
+  useEffect(() => setFocus(null), [state.level]);
   const [selectMode, setSelectMode] = useState(false);
 
   // Másodlagos paraméter csak olyan lehet, amely vizuálisan nem takarja az elsődlegeset:
@@ -226,7 +232,7 @@ export default function AnalysisView({ meta }) {
             {needsWind ? (
               <div className="wind-grid">
                 <WindRose data={windRose.data} loading={windRose.loading} />
-                <CompassPanel cube={cube.data} period={currentPeriod} grain={state.grain} order={order} />
+                <CompassPanel cube={cube.data} period={currentPeriod} grain={state.grain} order={order} focus={focus} onFocus={toggleFocus} />
               </div>
             ) : (
               <TimeSeriesChart
@@ -239,7 +245,8 @@ export default function AnalysisView({ meta }) {
                 forecastStart={forecastStart}
                 onDrill={(period) => drillTime(period)}
                 onBrush={(start, end) => dispatch({ type: 'brushTime', start, end })}
-                onMemberClick={(m) => drillGeo(m.key)}
+                focus={focus}
+                onFocus={toggleFocus}
                 onPeriodSelect={(p) => {
                   const i = periods.findIndex((x) => +x === +p);
                   if (i >= 0) setPeriodIdx(i);
@@ -255,7 +262,7 @@ export default function AnalysisView({ meta }) {
                 A felbontás az időbeli szintet követi{heatmapMode(state.grain) !== 'hour' ? ' · Kattintás egy cellára: lefúrás' : ''}
               </span>
             </div>
-            <Heatmap params={baseParams} paramsKey={key} measure={measure} order={order} onDrill={drillTime} />
+            <Heatmap params={baseParams} paramsKey={key} measure={measure} order={order} onDrill={drillTime} focus={focus} onFocus={toggleFocus} />
           </section>
 
           <section className="card">
@@ -265,7 +272,7 @@ export default function AnalysisView({ meta }) {
                 A teljes betöltött időszak, havi bontásban · Kattintás egy évre: kijelölés · Kattintás a grafikonra: lefúrás a hónapba
               </span>
             </div>
-            <YearOverYearChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
+            <YearOverYearChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} focus={focus} onFocus={toggleFocus} />
           </section>
 
           <section className="card">
@@ -273,7 +280,7 @@ export default function AnalysisView({ meta }) {
               <h2>Éves trend – {measure.label} ({measure.unit})</h2>
               <span className="muted small">A teljes betöltött időszak, éves bontásban · Kattintás: lefúrás az évre</span>
             </div>
-            <TrendChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} />
+            <TrendChart params={baseParams} measure={measure} range={meta.range} order={order} onDrill={drillTime} focus={focus} onFocus={toggleFocus} />
           </section>
         </div>
       )}
@@ -296,6 +303,8 @@ export default function AnalysisView({ meta }) {
               order={order}
               forecastStart={forecastStart}
               onDrill={(period) => drillTime(period)}
+              focus={focus}
+              onFocus={toggleFocus}
             />
           </section>
 
@@ -304,7 +313,7 @@ export default function AnalysisView({ meta }) {
               <h2>Korrelációs mátrix</h2>
               <span className="muted small">A fent kiválasztott paraméterek között, tagonként (helyszín / régió / ország)</span>
             </div>
-            <CorrelationMatrix params={baseParams} paramsKey={key} measures={meta.measures} selected={compareMeasures} order={order} />
+            <CorrelationMatrix params={baseParams} paramsKey={key} measures={meta.measures} selected={compareMeasures} order={order} focus={focus} onFocus={toggleFocus} />
           </section>
         </div>
       )}

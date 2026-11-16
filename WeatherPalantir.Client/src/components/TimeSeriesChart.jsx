@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import * as d3 from 'd3';
 import { useWidth } from '../hooks/useSize.js';
-import { memberColor } from '../utils/colors.js';
+import { activeFocus, memberColor, mutedSeries } from '../utils/colors.js';
 import { formatValue } from '../utils/format.js';
 import { axisTimeFormat, formatPeriod, grainInterval, parsePeriod } from '../utils/time.js';
 import { showTip } from './ChoroplethMap.jsx';
@@ -16,9 +16,10 @@ const roundedTopBar = (x, y, w, h, r) => {
 /**
  * Idősoros grafikon a paraméter típusához illő megjelenéssel (vonal / terület / oszlop).
  * Egy tengely, tagonként (helyszín / régió / ország) egy sorozat, entitáshoz kötött színekkel.
+ * A jelmagyarázatban egy tag nevére kattintva csak az ő adatai maradnak kiemelve, a többi kiszürkül.
  * Interakciók: hover – szálkereszt és tooltip; kattintás – időbeli lefúrás; húzás – időszak kijelölése.
  */
-export default function TimeSeriesChart({ cube, loading, measure, grain, order, currentPeriod, forecastStart, onDrill, onBrush, onMemberClick, onPeriodSelect }) {
+export default function TimeSeriesChart({ cube, loading, measure, grain, order, currentPeriod, forecastStart, onDrill, onBrush, onPeriodSelect, focus, onFocus }) {
   const theme = useTheme();
   const [wrapRef, width] = useWidth(900);
   const svgRef = useRef(null);
@@ -39,11 +40,14 @@ export default function TimeSeriesChart({ cube, loading, measure, grain, order, 
 
   // Az ábrán használt grain a ténylegesen betöltött adaté (a válasz megérkezéséig a régit mutatjuk).
   const dataGrain = cube?.grain ?? grain;
+  const active = activeFocus(focus, members);
 
   useEffect(() => {
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
     if (!periods.length) return;
+    const dim = (m) => active != null && m.key !== active;
+    const paint = (m) => (dim(m) ? mutedSeries() : m.color);
 
     const innerW = width - margin.left - margin.right;
     const innerH = height - margin.top - margin.bottom;
@@ -88,7 +92,8 @@ export default function TimeSeriesChart({ cube, loading, measure, grain, order, 
           .data(periods.filter((p) => vals.get(+p) != null))
           .join('path')
           .attr('class', 'bar')
-          .attr('fill', m.color)
+          .attr('opacity', dim(m) ? 0.3 : 1)
+          .attr('fill', paint(m))
           .attr('d', (p) => {
             const s = slot(p);
             const gap = s > 6 ? 2 : 0;
@@ -101,23 +106,25 @@ export default function TimeSeriesChart({ cube, loading, measure, grain, order, 
     } else {
       // A teljes periódus-sorozaton haladunk, így a hiányzó periódusoknál (pl. be nem töltött napok) a vonal megszakad.
       const fullRange = interval.range(start, end);
-      members.forEach((m) => {
+      // A kiemelt sorozat kerül felülre.
+      [...members].sort((a, b) => dim(b) - dim(a)).forEach((m) => {
         const vals = byMember.get(m.key);
         const pts = fullRange.map((p) => [p, vals.get(+p) ?? null]);
         if (measure.chart === 'area') {
           series
             .append('path')
             .attr('class', 'area')
-            .attr('fill', m.color)
+            .attr('fill', paint(m))
             .attr('fill-opacity', members.length > 1 ? 0.08 : 0.16)
             .attr('d', d3.area().defined((d) => d[1] != null).x((d) => mid(d[0])).y0(y(Math.max(0, y.domain()[0]))).y1((d) => y(d[1])).curve(d3.curveMonotoneX)(pts));
         }
         series
           .append('path')
           .attr('class', 'line')
-          .attr('stroke', m.color)
+          .attr('opacity', dim(m) ? 0.45 : 1)
+          .attr('stroke', paint(m))
           .attr('d', d3.line().defined((d) => d[1] != null).x((d) => mid(d[0])).y((d) => y(d[1])).curve(d3.curveMonotoneX)(pts));
-        if (periods.length <= 45) {
+        if (periods.length <= 45 && !dim(m)) {
           series
             .append('g')
             .selectAll('circle')
@@ -134,6 +141,7 @@ export default function TimeSeriesChart({ cube, loading, measure, grain, order, 
       // Közvetlen feliratok a sorozatok végén (legfeljebb 4 sorozatnál)
       if (members.length <= 4) {
         const labels = members
+          .filter((m) => !dim(m))
           .map((m) => {
             const last = [...periods].reverse().find((p) => byMember.get(m.key).get(+p) != null);
             return last ? { m, x: mid(last), y: y(byMember.get(m.key).get(+last)) } : null;
@@ -193,7 +201,7 @@ export default function TimeSeriesChart({ cube, loading, measure, grain, order, 
         if (!p) return;
         cross.attr('x1', mid(p)).attr('x2', mid(p)).style('opacity', 1);
         const lines = [`<strong>${formatPeriod(p, dataGrain)}</strong>`];
-        for (const m of members) {
+        for (const m of members.filter((mm) => !dim(mm))) {
           lines.push(`<span class="swatch" style="background:${m.color}"></span>${m.name}: <b>${formatValue(byMember.get(m.key).get(+p), measure)}</b>`);
         }
         showTip(tip, event, wrapRef.current, lines.join('<br>'));
@@ -202,14 +210,21 @@ export default function TimeSeriesChart({ cube, loading, measure, grain, order, 
         cross.style('opacity', 0);
         tip.style('opacity', 0);
       });
-  }, [members, periods, byMember, width, measure, dataGrain, currentPeriod, forecastStart, onBrush, onDrill, onPeriodSelect, wrapRef]);
+  }, [members, periods, byMember, active, width, measure, dataGrain, currentPeriod, forecastStart, onBrush, onDrill, onPeriodSelect, wrapRef]);
 
   return (
     <div className="chart-wrap" ref={wrapRef}>
       {members.length > 1 && (
         <div className="legend" role="list">
           {members.map((m) => (
-            <button key={m.key} role="listitem" className="legend-item" onClick={() => onMemberClick(m)} title="Lefúrás erre a tagra">
+            <button
+              key={m.key}
+              role="listitem"
+              className={active != null && m.key !== active ? 'legend-item dim' : 'legend-item'}
+              aria-pressed={m.key === active}
+              title={active == null ? 'Csak ennek a megjelenítése' : 'Vissza az eredeti kijelöléshez'}
+              onClick={() => onFocus(m.key)}
+            >
               <span className="swatch" style={{ background: m.color }} />
               {m.name}
             </button>

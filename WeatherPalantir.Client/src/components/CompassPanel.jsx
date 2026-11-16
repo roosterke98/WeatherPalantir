@@ -1,12 +1,13 @@
-import { memberColor } from '../utils/colors.js';
+import { activeFocus, memberColor } from '../utils/colors.js';
 import { useTheme } from '../utils/theme.js';
 import { compassPoint } from '../utils/format.js';
 import { formatPeriod, parsePeriod } from '../utils/time.js';
 
 /** Iránytűszerű kijelzés tagonként a csúszka aktuális periódusának (vektoros átlag) szélirányával. */
-export default function CompassPanel({ cube, period, grain, order }) {
+export default function CompassPanel({ cube, period, grain, order, focus, onFocus }) {
   useTheme(); // témaváltáskor újrarenderel (a színek a témától függnek)
   const rows = (cube?.rows ?? []).filter((r) => period && r.period && +parsePeriod(r.period) === +period);
+  const active = activeFocus(focus, rows.map((r) => ({ key: r.memberKey })));
   return (
     <div className="compass-panel">
       <h3>Szélirány – {formatPeriod(period, grain)}</h3>
@@ -16,7 +17,7 @@ export default function CompassPanel({ cube, period, grain, order }) {
           const dir = r.values.windDirection;
           const color = memberColor(r.memberKey, order);
           return (
-            <figure key={r.memberKey} className="compass">
+            <figure key={r.memberKey} className={active != null && r.memberKey !== active ? 'compass dim' : 'compass'}>
               <svg viewBox="-60 -60 120 120" width="120" height="120" role="img" aria-label={`${r.memberName}: ${dir ?? '–'} fok`}>
                 <circle r="50" className="compass-ring" />
                 {[0, 90, 180, 270].map((a) => (
@@ -33,7 +34,7 @@ export default function CompassPanel({ cube, period, grain, order }) {
                 <circle r="4" className="compass-hub" />
               </svg>
               <figcaption>
-                <strong>{r.memberName}</strong>
+                <button className="facet-title" onClick={() => onFocus(r.memberKey)} title="Csak ennek a kiemelése · újabb kattintás: vissza">{r.memberName}</button>
                 <span className="muted">{dir != null ? `${Math.round(dir)}° (${compassPoint(dir)}) felől` : '–'}</span>
               </figcaption>
             </figure>

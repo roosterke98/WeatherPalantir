@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import { api } from '../api.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { useWidth } from '../hooks/useSize.js';
-import { memberColor } from '../utils/colors.js';
+import { activeFocus, memberColor, mutedSeries } from '../utils/colors.js';
 import { formatValue } from '../utils/format.js';
 import { parsePeriod } from '../utils/time.js';
 import { showTip } from './ChoroplethMap.jsx';
@@ -34,7 +34,7 @@ function regression(points) {
  * ezért kimaradnak. Az „eltérés” mód a tag saját többéves átlagához viszonyít,
  * így az eltérő szintű helyszínek is összevethetők.
  */
-export default function TrendChart({ params, measure, range, order, onDrill }) {
+export default function TrendChart({ params, measure, range, order, onDrill, focus, onFocus }) {
   const theme = useTheme();
   const [wrapRef, width] = useWidth(900);
   const svgRef = useRef(null);
@@ -69,10 +69,14 @@ export default function TrendChart({ params, measure, range, order, onDrill }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a téma a memberColor() eredményét változtatja
   }, [cube.data, measure, order, mode, theme]);
 
+  const active = activeFocus(focus, members);
+
   useEffect(() => {
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
     if (!years.length) return;
+    const dim = (m) => active != null && m.key !== active;
+    const paint = (m) => (dim(m) ? mutedSeries() : m.color);
 
     const innerW = width - margin.left - margin.right;
     const innerH = height - margin.top - margin.bottom;
@@ -90,16 +94,17 @@ export default function TrendChart({ params, measure, range, order, onDrill }) {
     if (mode === 'anomaly') g.append('line').attr('class', 'zero-line').attr('x1', 0).attr('x2', innerW).attr('y1', y(0)).attr('y2', y(0));
 
     const line = d3.line().x((p) => x(p.year)).y((p) => y(p.y));
-    for (const m of members) {
-      if (m.fit) {
+    for (const m of [...members].sort((a, b) => dim(b) - dim(a))) {
+      if (m.fit && !dim(m)) {
         const [a, b] = [m.points[0].year, m.points[m.points.length - 1].year];
         g.append('line')
           .attr('class', 'trend-line')
-          .attr('stroke', m.color)
+          .attr('stroke', paint(m))
           .attr('x1', x(a)).attr('y1', y(m.fit.at(a)))
           .attr('x2', x(b)).attr('y2', y(m.fit.at(b)));
       }
-      g.append('path').attr('class', 'line').attr('stroke', m.color).attr('d', line(m.points));
+      g.append('path').attr('class', 'line').attr('opacity', dim(m) ? 0.45 : 1).attr('stroke', paint(m)).attr('d', line(m.points));
+      if (dim(m)) continue;
       g.append('g')
         .selectAll('circle')
         .data(m.points)
@@ -114,6 +119,7 @@ export default function TrendChart({ params, measure, range, order, onDrill }) {
     // Közvetlen feliratok a sorozatok végén (legfeljebb 4 sorozatnál)
     if (members.length <= 4) {
       const labels = members
+        .filter((m) => !dim(m))
         .map((m) => {
           const lastPoint = m.points[m.points.length - 1];
           return { m, x: x(lastPoint.year), y: y(lastPoint.y) };
@@ -135,7 +141,7 @@ export default function TrendChart({ params, measure, range, order, onDrill }) {
         const yr = yearAt(event);
         cross.attr('x1', x(yr)).attr('x2', x(yr)).style('opacity', 1);
         const lines = [`<strong>${yr}</strong>`];
-        for (const m of members) {
+        for (const m of members.filter((mm) => !dim(mm))) {
           const p = m.points.find((q) => q.year === yr);
           if (!p) continue;
           const diff = mode === 'anomaly' ? ` <span class="muted">(${signed(p.y)} az átlaghoz képest)</span>` : '';
@@ -149,7 +155,7 @@ export default function TrendChart({ params, measure, range, order, onDrill }) {
       })
       .on('click', (event) => onDrill(new Date(yearAt(event), 0, 1), 'year'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [members, years, width, measure, mode, onDrill, wrapRef]);
+  }, [members, years, active, width, measure, mode, onDrill, wrapRef]);
 
   if (!supported) return <div className="empty">A szélirányhoz nem készül trend – válassz másik paramétert.</div>;
 
@@ -171,11 +177,18 @@ export default function TrendChart({ params, measure, range, order, onDrill }) {
       {members.length > 0 && (
         <div className="legend" role="list">
           {members.map((m) => (
-            <span key={m.key} role="listitem" className="legend-item static">
+            <button
+              key={m.key}
+              role="listitem"
+              className={active != null && m.key !== active ? 'legend-item dim' : 'legend-item'}
+              aria-pressed={m.key === active}
+              title={active == null ? 'Csak ennek a megjelenítése' : 'Vissza az eredeti kijelöléshez'}
+              onClick={() => onFocus(m.key)}
+            >
               <span className="swatch" style={{ background: m.color }} />
               {m.name}
               {m.fit && <span className="muted">· {signed(m.fit.slope * 10)} {measure.unit} / évtized</span>}
-            </span>
+            </button>
           ))}
         </div>
       )}

@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import { api } from '../api.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { useWidth } from '../hooks/useSize.js';
-import { memberColor } from '../utils/colors.js';
+import { activeFocus, memberColor, mutedSeries } from '../utils/colors.js';
 import { formatValue } from '../utils/format.js';
 import { axisTimeFormat, formatPeriod, grainInterval, parsePeriod } from '../utils/time.js';
 import { showTip } from './ChoroplethMap.jsx';
@@ -21,7 +21,7 @@ const GAP = 10;
  * (nincs kettős tengely), tagonként (helyszín / régió / ország) egy sorozat. A részletesség az elemzés
  * aktuális időbeli szintjét követi. Hover: közös szálkereszt; kattintás: időbeli lefúrás.
  */
-export default function MultiMeasureChart({ params, paramsKey, measures, selected, onSelectedChange, order, forecastStart, onDrill }) {
+export default function MultiMeasureChart({ params, paramsKey, measures, selected, onSelectedChange, order, forecastStart, onDrill, focus, onFocus }) {
   const theme = useTheme();
   const [wrapRef, width] = useWidth(900);
   const svgRef = useRef(null);
@@ -49,6 +49,7 @@ export default function MultiMeasureChart({ params, paramsKey, measures, selecte
   }, [cube.data, order, theme]);
 
   const dataGrain = cube.data?.grain ?? params.grain;
+  const active = activeFocus(focus, members);
   const drawn = (cube.data?.measures ?? []).map((k) => options.find((m) => m.key === k)).filter(Boolean);
   const height = margin.top + drawn.length * (TITLE_H + PANEL_H + GAP) + margin.bottom;
 
@@ -56,6 +57,8 @@ export default function MultiMeasureChart({ params, paramsKey, measures, selecte
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
     if (!periods.length || !drawn.length) return;
+    const dim = (m) => active != null && m.key !== active;
+    const paint = (m) => (dim(m) ? mutedSeries() : m.color);
 
     const innerW = width - margin.left - margin.right;
     const interval = grainInterval(dataGrain);
@@ -100,7 +103,8 @@ export default function MultiMeasureChart({ params, paramsKey, measures, selecte
             .data(periods.filter((p) => value(m, p, def) != null))
             .join('rect')
             .attr('class', 'bar')
-            .attr('fill', m.color)
+            .attr('opacity', dim(m) ? 0.3 : 1)
+            .attr('fill', paint(m))
             .attr('x', (p) => {
               const slot = x(interval.offset(p, 1)) - x(p);
               const gap = slot > 6 ? 2 : 0;
@@ -115,11 +119,12 @@ export default function MultiMeasureChart({ params, paramsKey, measures, selecte
             .attr('height', (p) => Math.abs(y(value(m, p, def)) - y(0)));
         });
       } else {
-        members.forEach((m) => {
+        [...members].sort((a, b) => dim(b) - dim(a)).forEach((m) => {
           const pts = fullRange.map((p) => [p, value(m, p, def)]);
           g.append('path')
             .attr('class', 'line')
-            .attr('stroke', m.color)
+            .attr('opacity', dim(m) ? 0.45 : 1)
+            .attr('stroke', paint(m))
             .attr('d', d3.line().defined((d) => d[1] != null).x((d) => mid(d[0])).y((d) => y(d[1])).curve(d3.curveMonotoneX)(pts));
         });
       }
@@ -145,6 +150,7 @@ export default function MultiMeasureChart({ params, paramsKey, measures, selecte
         cross.attr('x1', mid(p)).attr('x2', mid(p)).style('opacity', 1);
         const head = drawn.map((d) => `<th>${d.label}</th>`).join('');
         const body = members
+          .filter((m) => !dim(m))
           .map(
             (m) =>
               `<tr><td><span class="swatch" style="background:${m.color}"></span>${m.name}</td>${drawn
@@ -163,7 +169,7 @@ export default function MultiMeasureChart({ params, paramsKey, measures, selecte
         if (p && dataGrain !== 'hour') onDrill(p);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [members, periods, lookup, width, dataGrain, forecastStart, onDrill, wrapRef, cube.data]);
+  }, [members, periods, lookup, active, width, dataGrain, forecastStart, onDrill, wrapRef, cube.data]);
 
   const addable = options.filter((m) => !selected.includes(m.key));
 
@@ -197,10 +203,17 @@ export default function MultiMeasureChart({ params, paramsKey, measures, selecte
       {members.length > 1 && (
         <div className="legend" role="list">
           {members.map((m) => (
-            <span key={m.key} role="listitem" className="legend-item static">
+            <button
+              key={m.key}
+              role="listitem"
+              className={active != null && m.key !== active ? 'legend-item dim' : 'legend-item'}
+              aria-pressed={m.key === active}
+              title={active == null ? 'Csak ennek a megjelenítése' : 'Vissza az eredeti kijelöléshez'}
+              onClick={() => onFocus(m.key)}
+            >
               <span className="swatch" style={{ background: m.color }} />
               {m.name}
-            </span>
+            </button>
           ))}
         </div>
       )}

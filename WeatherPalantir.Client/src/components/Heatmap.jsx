@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import { api } from '../api.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { useWidth } from '../hooks/useSize.js';
-import { fillScale } from '../utils/colors.js';
+import { activeFocus, fillScale } from '../utils/colors.js';
 import { formatValue } from '../utils/format.js';
 import { formatPeriod, parsePeriod } from '../utils/time.js';
 import { showTip } from './ChoroplethMap.jsx';
@@ -56,7 +56,7 @@ export const heatmapMode = (grain) => (grain === 'hour' ? 'hour' : grain === 'da
  * Hőtérkép tagonként (helyszín / régió / ország) egy panellel, közös színskálával, így a helyszínek
  * és az évek mintázatai egymás mellett olvashatók. Kattintás egy cellára: időbeli lefúrás a cella periódusába.
  */
-export default function Heatmap({ params, paramsKey, measure, order, onDrill }) {
+export default function Heatmap({ params, paramsKey, measure, order, onDrill, focus, onFocus }) {
   const theme = useTheme();
   const mode = MODES[heatmapMode(params.grain)];
   const supported = measure.key !== 'windDirection';
@@ -93,6 +93,7 @@ export default function Heatmap({ params, paramsKey, measure, order, onDrill }) 
   if (!supported) return <div className="empty">A szélirányhoz nem készül hőtérkép – válassz másik paramétert.</div>;
 
   const clickable = mode.cellGrain !== 'hour';
+  const active = activeFocus(focus, panels);
 
   return (
     <div className="chart-wrap">
@@ -104,7 +105,7 @@ export default function Heatmap({ params, paramsKey, measure, order, onDrill }) 
           <ColorLegend color={color} measure={measure} caption={mode.caption} />
           <div className="facets">
             {panels.map((p) => (
-              <HeatPanel key={p.key} panel={p} mode={mode} rowKeys={rowKeys} color={color} measure={measure} showTitle={panels.length > 1} onCell={clickable ? onDrill : null} />
+              <HeatPanel key={p.key} panel={p} mode={mode} rowKeys={rowKeys} color={color} measure={measure} showTitle={panels.length > 1} onCell={clickable ? onDrill : null} dim={active != null && p.key !== active} onTitle={onFocus} />
             ))}
           </div>
           {hidden > 0 && <p className="muted small">További {hidden} tag nem fért ki – szűkítsd a földrajzi szeletet.</p>}
@@ -114,7 +115,7 @@ export default function Heatmap({ params, paramsKey, measure, order, onDrill }) 
   );
 }
 
-function HeatPanel({ panel, mode, rowKeys, color, measure, showTitle, onCell }) {
+function HeatPanel({ panel, mode, rowKeys, color, measure, showTitle, onCell, dim, onTitle }) {
   const [wrapRef, width] = useWidth(480);
   const tipRef = useRef(null);
   const labelW = 62;
@@ -130,8 +131,14 @@ function HeatPanel({ panel, mode, rowKeys, color, measure, showTitle, onCell }) 
   const hide = () => d3.select(tipRef.current).style('opacity', 0);
 
   return (
-    <figure className="facet" ref={wrapRef}>
-      {showTitle && <figcaption>{panel.name}</figcaption>}
+    <figure className={dim ? 'facet dim' : 'facet'} ref={wrapRef}>
+      {showTitle && (
+        <figcaption>
+          <button className="facet-title" onClick={() => onTitle(panel.key)} title="Csak ennek a kiemelése · újabb kattintás: vissza">
+            {panel.name}
+          </button>
+        </figcaption>
+      )}
       <svg width={width} height={height} role="img" aria-label={`${measure.label} hőtérkép – ${panel.name}`} onPointerLeave={hide}>
         {mode.cols.map((c, i) =>
           i % colEvery === 0 ? (

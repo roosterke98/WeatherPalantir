@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import { api } from '../api.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { useWidth } from '../hooks/useSize.js';
-import { isDark } from '../utils/colors.js';
+import { activeFocus, isDark } from '../utils/colors.js';
 import { formatValue } from '../utils/format.js';
 import { parsePeriod } from '../utils/time.js';
 import { showTip } from './ChoroplethMap.jsx';
@@ -26,7 +26,7 @@ const isComplete = (row, period) => {
  * függetlenül), tagonként (helyszín / régió / ország) külön panelen, közös értéktengellyel.
  * A jelmagyarázatban egy évre kattintva csak a kijelölt évek maradnak; az „Összes év” visszaállítja a nézetet.
  */
-export default function YearOverYearChart({ params, measure, range, order, onDrill }) {
+export default function YearOverYearChart({ params, measure, range, order, onDrill, focus, onFocus }) {
   const theme = useTheme();
   const [hoverYear, setHoverYear] = useState(null);
   const [picked, setPicked] = useState([]);
@@ -67,6 +67,7 @@ export default function YearOverYearChart({ params, measure, range, order, onDri
   if (!supported) return <div className="empty">A szélirányhoz nem készül éves összehasonlítás – válassz másik paramétert.</div>;
 
   const { panels, years, yearColor, extent, hidden } = model;
+  const active = activeFocus(focus, panels);
   const shownYears = picked.length ? years.filter((yr) => picked.includes(yr)) : years;
   const last = shownYears[shownYears.length - 1];
   const togglePicked = (yr) => setPicked((p) => (p.includes(yr) ? p.filter((x) => x !== yr) : [...p, yr]));
@@ -107,7 +108,7 @@ export default function YearOverYearChart({ params, measure, range, order, onDri
           </div>
           <div className="facets">
             {panels.map((p) => (
-              <YearPanel key={p.key} panel={p} years={shownYears} last={last} yearColor={yearColor} extent={extent} measure={measure} hoverYear={hoverYear} showTitle={panels.length > 1} onDrill={onDrill} />
+              <YearPanel key={p.key} panel={p} years={shownYears} last={last} yearColor={yearColor} extent={extent} measure={measure} hoverYear={hoverYear} showTitle={panels.length > 1} onDrill={onDrill} dim={active != null && p.key !== active} onTitle={onFocus} />
             ))}
           </div>
           {measure.aggregation === 'sum' && <p className="muted small">A csonka (részben betöltött) hónapok összegei nem szerepelnek.</p>}
@@ -118,7 +119,7 @@ export default function YearOverYearChart({ params, measure, range, order, onDri
   );
 }
 
-function YearPanel({ panel, years, last, yearColor, extent, measure, hoverYear, showTitle, onDrill }) {
+function YearPanel({ panel, years, last, yearColor, extent, measure, hoverYear, showTitle, onDrill, dim, onTitle }) {
   const [wrapRef, width] = useWidth(480);
   const svgRef = useRef(null);
   const tipRef = useRef(null);
@@ -202,8 +203,14 @@ function YearPanel({ panel, years, last, yearColor, extent, measure, hoverYear, 
   }, [panel, years, last, yearColor, extent, measure, hoverYear, width, onDrill, wrapRef]);
 
   return (
-    <figure className="facet" ref={wrapRef}>
-      {showTitle && <figcaption>{panel.name}</figcaption>}
+    <figure className={dim ? 'facet dim' : 'facet'} ref={wrapRef}>
+      {showTitle && (
+        <figcaption>
+          <button className="facet-title" onClick={() => onTitle(panel.key)} title="Csak ennek a kiemelése · újabb kattintás: vissza">
+            {panel.name}
+          </button>
+        </figcaption>
+      )}
       <svg ref={svgRef} width={width} height={height} role="img" aria-label={`${measure.label} évenként, havi bontásban – ${panel.name}`} />
       <div ref={tipRef} className="tooltip" />
     </figure>
