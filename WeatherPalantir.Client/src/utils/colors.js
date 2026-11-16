@@ -22,8 +22,23 @@ export function memberColor(memberKey, orderedKeys) {
   return palette[(i < 0 ? 0 : i) % palette.length];
 }
 
+/** A kiemelésből kimaradó (kiszürkített) sorozatok színe. */
+export const mutedSeries = () => (isDark() ? '#7d7f95' : '#b5b3ab');
+
+/** A kiemelt tag kulcsa, ha szerepel a megjelenített tagok között; különben nincs kiemelés. */
+export const activeFocus = (focus, members) => (focus != null && members.some((m) => m.key === focus) ? focus : null);
+
 /** A térkép és a hőtérkép közös színskálája: hidegtől (lila, kék) a melegig (narancs, vörös). */
 export const SPECTRAL = ['#5E4FA2', '#3288BD', '#66C2A5', '#ABDDA4', '#E6F598', '#FFFFBF', '#FEE08B', '#FDAE61', '#F46D43', '#D53E4F', '#9E0142'];
+
+/**
+ * A csapadék jellegű paraméterek (csapadék, eső, hó, csapadék valószínűsége) saját skálát kapnak,
+ * hogy ránézésre elkülönüljenek a hőmérséklettől: világos felületen halványtól a sötétkékig-liláig,
+ * sötét felületen fordítva (a több csapadék a világosabb), így a nulla mindkét esetben a háttérbe simul.
+ */
+const PRECIP_LIGHT = ['#cdeae6', '#a3d9d2', '#66c2c4', '#2c9fc9', '#1f6fb5', '#253494', '#3b0f70'];
+const PRECIP_DARK = ['#2a2f6b', '#225ea8', '#1d91c0', '#41b6c4', '#7fcdbb', '#c7e9b4', '#ffffd9'];
+const PRECIP_SCHEMES = ['precipitation', 'snow', 'probability'];
 
 /** Additív vagy arány jellegű mennyiségeknél (pl. csapadék) a nulla a skála alja. */
 const ZERO_BASED = ['precipitation', 'snow', 'probability', 'cloud', 'humidity'];
@@ -34,7 +49,8 @@ export function fillScale(scheme, values) {
   if (ext[0] == null) return null;
   let [lo, hi] = ext;
   if (lo === hi) { lo -= 1; hi += 1; }
-  return d3.scaleSequential([ZERO_BASED.includes(scheme) ? Math.min(0, lo) : lo, hi], d3.interpolateRgbBasis(SPECTRAL)).clamp(true);
+  const steps = PRECIP_SCHEMES.includes(scheme) ? (isDark() ? PRECIP_DARK : PRECIP_LIGHT) : SPECTRAL;
+  return d3.scaleSequential([ZERO_BASED.includes(scheme) ? Math.min(0, lo) : lo, hi], d3.interpolateRgbBasis(steps)).clamp(true);
 }
 
 /** Szélrózsa sebességsávok – ordinális kék rámpa (felülethez legközelebbi lépés is ≥ 2:1 kontraszt). */
