@@ -28,6 +28,8 @@ internal static class SqlFragments
         TimeGrain.Month => "CAST(DATEFROMPARTS(t.[Year], t.[Month], 1) AS datetime)",
         TimeGrain.Year => "CAST(DATEFROMPARTS(t.[Year], 1, 1) AS datetime)",
         TimeGrain.All => "CAST(NULL AS datetime)",
+        // A nap órája egy rögzített napra (2000-01-01) vetítve, így a periódus típusa itt is datetime.
+        TimeGrain.HourOfDay => "DATEADD(hour, t.[Hour], CAST('20000101' AS datetime))",
         _ => throw new ArgumentOutOfRangeException(nameof(grain))
     };
 

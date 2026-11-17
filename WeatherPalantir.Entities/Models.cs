@@ -1,6 +1,7 @@
 ﻿namespace WeatherPalantir.Entities;
 
-public enum TimeGrain { Hour, Day, Month, Year, All }
+/// <summary>Az időbeli részletesség. A <c>HourOfDay</c> a nap órái szerinti (0–23) átlagos napi menetet adja.</summary>
+public enum TimeGrain { Hour, Day, Month, Year, All, HourOfDay }
 
 public enum GeoLevel { Location, Region, Country, All }
 
@@ -62,6 +63,9 @@ public sealed record ConditionCountDto(int? WeatherConditionKey, string Descript
 public sealed record ConditionSeriesRowDto(DateTime? Period, int? WeatherConditionKey, string Description, string? Severity, int Hours);
 
 public sealed record WindRoseCellDto(int Sector, int SpeedBand, int Hours);
+
+/// <summary>Egy mérőszám gyakorisági eloszlásának egy osztálya: a <c>Bin</c>-edik, rögzített szélességű sávba eső órák száma.</summary>
+public sealed record HistogramRowDto(string MemberKey, string MemberName, int Bin, int Hours);
 
 public sealed record ErrorLogDto(int LogId, DateTime? ExecutionDate, string? PackageName, string? ComponentName, string? ErrorMessage);
 

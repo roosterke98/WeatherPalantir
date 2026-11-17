@@ -80,6 +80,9 @@ export default function TimeSeriesChart({ cube, loading, measure, grain, order, 
     g.append('g').attr('class', 'axis').attr('transform', `translate(0,${innerH})`).call(d3.axisBottom(x).ticks(Math.max(2, innerW / 90)).tickFormat(axisTimeFormat).tickSizeOuter(0));
     g.append('text').attr('class', 'axis-title').attr('x', -margin.left + 4).attr('y', -4).text(measure.unit);
 
+    // Előjeles mennyiségnél a nullavonal hangsúlyos.
+    if (y.domain()[0] < 0 && y.domain()[1] > 0) g.append('line').attr('class', 'zero-line').attr('x1', 0).attr('x2', innerW).attr('y1', y(0)).attr('y2', y(0));
+
     const series = g.append('g');
     if (isBar) {
       const slot = (p) => x(interval.offset(p, 1)) - x(p);
@@ -100,7 +103,9 @@ export default function TimeSeriesChart({ cube, loading, measure, grain, order, 
             const bw = Math.max(1, (s - gap) / n - (n > 1 && s / n > 4 ? 2 : 0));
             const bx = x(p) + gap / 2 + i * ((s - gap) / n);
             const v = vals.get(+p);
-            return roundedTopBar(bx, y(Math.max(0, v)), bw, Math.abs(y(v) - y(0)), 4);
+            const h = Math.abs(y(v) - y(0));
+            // Negatív értéknél (pl. vízhiány) az oszlop a nullavonaltól lefelé nyúlik.
+            return v < 0 ? `M${bx},${y(0)}h${bw}v${h}h${-bw}Z` : roundedTopBar(bx, y(v), bw, h, 4);
           });
       });
     } else {

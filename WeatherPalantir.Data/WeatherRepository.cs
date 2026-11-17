@@ -10,6 +10,7 @@ public interface IWeatherRepository
     Task<IReadOnlyList<ConditionCountDto>> GetConditionCountsAsync(CubeQuery query, CancellationToken ct);
     Task<IReadOnlyList<ConditionSeriesRowDto>> GetConditionSeriesAsync(CubeQuery query, CancellationToken ct);
     Task<IReadOnlyList<WindRoseCellDto>> GetWindRoseAsync(CubeQuery query, CancellationToken ct);
+    Task<IReadOnlyList<HistogramRowDto>> GetHistogramAsync(CubeQuery query, MeasureDefinition measure, double binWidth, CancellationToken ct);
     Task<DataRangeDto> GetDataRangeAsync(CancellationToken ct);
 }
 
@@ -30,8 +31,10 @@ public sealed class WeatherRepository(IDbConnectionFactory db) : IWeatherReposit
         var outer = new StringBuilder();
         foreach (var m in measures)
         {
-            var col = $"CAST(f.[{m.Column}] AS float)";
-            switch (m.Aggregation)
+            var col = $"CAST({m.Sql} AS float)";
+            // A napi menetnél (a nap órái szerint) az összegezhető mennyiségek is órás átlagként értelmesek.
+            var aggregation = query.Grain == TimeGrain.HourOfDay && m.Aggregation == Aggregation.Sum ? Aggregation.Avg : m.Aggregation;
+            switch (aggregation)
             {
                 case Aggregation.Avg:
                     inner.Append($", AVG({col}) AS [{m.Key}]");
@@ -195,6 +198,33 @@ public sealed class WeatherRepository(IDbConnectionFactory db) : IWeatherReposit
             """;
         await using var conn = await db.OpenAsync(ct);
         var result = await conn.QueryAsync<WindRoseCellDto>(new CommandDefinition(sql, p, commandTimeout: 120, cancellationToken: ct));
+        return result.ToList();
+    }
+
+    /// <summary>
+    /// Egy mérőszám óránkénti értékeinek gyakorisági eloszlása tagonként (helyszín / régió / ország):
+    /// a <paramref name="binWidth"/> szélességű osztályokba eső órák száma.
+    /// </summary>
+    public async Task<IReadOnlyList<HistogramRowDto>> GetHistogramAsync(CubeQuery query, MeasureDefinition measure, double binWidth, CancellationToken ct)
+    {
+        var p = new DynamicParameters();
+        p.Add("BinWidth", binWidth);
+        var (memberKey, memberName) = SqlFragments.MemberExpr(query.Level);
+        var bin = $"CAST(FLOOR(CAST({measure.Sql} AS float) / @BinWidth) AS int)";
+        // Konstans kifejezés (Level=All) nem szerepelhet a GROUP BY-ban.
+        var group = query.Level == GeoLevel.All ? bin : $"{memberKey}, {memberName}, {bin}";
+        var sql = $"""
+            SELECT {memberKey} AS MemberKey,
+                   {memberName} AS MemberName,
+                   {bin} AS Bin,
+                   COUNT(*) AS Hours
+            {SqlFragments.StarJoin}
+            {SqlFragments.Where(query, p)} AND {measure.Sql} IS NOT NULL
+            GROUP BY {group}
+            ORDER BY 1, 3;
+            """;
+        await using var conn = await db.OpenAsync(ct);
+        var result = await conn.QueryAsync<HistogramRowDto>(new CommandDefinition(sql, p, commandTimeout: 120, cancellationToken: ct));
         return result.ToList();
     }
 

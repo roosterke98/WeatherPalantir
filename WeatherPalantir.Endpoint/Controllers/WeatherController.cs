@@ -48,6 +48,22 @@ public sealed class WeatherController(IWeatherRepository repository) : Controlle
         return Ok(await repository.GetWindRoseAsync(query, ct));
     }
 
+    /// <summary>
+    /// Egy paraméter óránkénti értékeinek gyakorisági eloszlása tagonként; a <paramref name="bin"/> az osztályok
+    /// szélessége a paraméter mértékegységében (pl. szélsebességnél km/h).
+    /// </summary>
+    [HttpGet("histogram")]
+    public async Task<ActionResult<IReadOnlyList<HistogramRowDto>>> Histogram([FromQuery] CubeQueryParameters parameters, [FromQuery] double bin = 1, CancellationToken ct = default)
+    {
+        if (!parameters.TryBuild(requireMeasures: true, out var query, out var measures, out var error))
+            return ValidationProblem(error!);
+        if (measures.Count != 1 || measures[0].Aggregation == Aggregation.Vector)
+            return ValidationProblem("Az eloszláshoz pontosan egy, nem irány jellegű paramétert kell megadni.");
+        if (!(bin > 0) || double.IsInfinity(bin))
+            return ValidationProblem("Az osztályszélességnek (bin) pozitív számnak kell lennie.");
+        return Ok(await repository.GetHistogramAsync(query, measures[0], bin, ct));
+    }
+
     [HttpGet("range")]
     public async Task<ActionResult<DataRangeDto>> Range(CancellationToken ct) => Ok(await repository.GetDataRangeAsync(ct));
 

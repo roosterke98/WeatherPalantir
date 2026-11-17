@@ -2,11 +2,13 @@ import * as d3 from 'd3';
 
 const f1 = d3.format(',.1f');
 const f0 = d3.format(',.0f');
+const f2 = d3.format(',.2f');
 
 export function formatValue(value, measure) {
   if (value == null || !Number.isFinite(value)) return '–';
   if (measure?.key === 'windDirection') return `${f0(value)}° ${compassPoint(value)}`;
-  const text = Math.abs(value) >= 100 ? f0(value) : f1(value);
+  // A telítési hiány (kPa) jellemzően 1 alatti érték, ezért két tizedessel jelenik meg.
+  const text = Math.abs(value) >= 100 ? f0(value) : measure?.unit === 'kPa' ? f2(value) : f1(value);
   return measure?.unit ? `${text} ${measure.unit}` : text;
 }
 

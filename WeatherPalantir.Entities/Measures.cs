@@ -27,7 +27,15 @@ public sealed record MeasureDefinition(
     string Chart,
     string[] MapEncodings,
     string ColorScheme,
-    string Group);
+    string Group,
+    string? Expression = null)
+{
+    /// <summary>
+    /// Az aggregálandó SQL kifejezés. Származtatott mérőszámnál (pl. vízmérleg) a kódban rögzített
+    /// <see cref="Expression"/>, egyébként a ténytábla oszlopa.
+    /// </summary>
+    public string Sql => Expression ?? $"f.[{Column}]";
+}
 
 public static class Measures
 {
@@ -49,6 +57,12 @@ public static class Measures
         new("relativeHumidity", "RelativeHumidity", "Relatív páratartalom", "%", Aggregation.Avg, "area", ["fill"], "humidity", "Légkör"),
         new("cloudCover", "CloudCover", "Felhőzet", "%", Aggregation.Avg, "area", ["fill"], "cloud", "Légkör"),
         new("visibility", "Visibility", "Látótávolság", "m", Aggregation.Avg, "line", ["fill"], "visibility", "Légkör"),
+        new("surfacePressure", "SurfacePressure", "Felszíni légnyomás", "hPa", Aggregation.Avg, "line", ["fill"], "pressure", "Légkör"),
+        new("vapourPressureDeficit", "VapourPressureDeficit", "Telítési hiány (VPD)", "kPa", Aggregation.Avg, "area", ["fill"], "vpd", "Vízmérleg"),
+        new("evapotranspiration", "Evapotranspiration", "Referencia párolgás (ET₀)", "mm", Aggregation.Sum, "bar", ["fill"], "evapotranspiration", "Vízmérleg"),
+        // Származtatott mérőszám: az óránkénti csapadék és referencia párolgás különbsége, időben összegezve.
+        new("waterBalance", "Precipitation", "Vízmérleg (csapadék − ET₀)", "mm", Aggregation.Sum, "bar", ["fill"], "balance", "Vízmérleg",
+            "f.[Precipitation] - f.[Evapotranspiration]"),
     ];
 
     private static readonly Dictionary<string, MeasureDefinition> ByKey =
