@@ -373,6 +373,16 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .pick:hover { background: var(--surface-2); color: var(--text); }
 .pick.active { background: var(--accent-weak); border-color: var(--accent); color: var(--text); font-weight: 600; }
 .location.selected { stroke: var(--accent); stroke-width: 3.5; }
+/* Helyszín udvara: nagyobb, kifelé elhalványuló kör a mag körül; a kurzor alatt kiemelődik. */
+.loc { cursor: pointer; }
+.loc-halo { r: var(--halo); fill: var(--text); opacity: 0.9; transition: r 0.15s ease, opacity 0.15s ease; }
+/* Sötét témákban a színezett régiók világosak, ezért ott az udvar a sötét felületszínt kapja. */
+:root[data-theme='dark'] .loc-halo, :root[data-theme='dusk'] .loc-halo { fill: var(--surface); }
+.loc.selected .loc-halo { fill: var(--accent); }
+.loc:hover .loc-halo { r: var(--halo-hover); opacity: 1; }
+.loc:hover .location { stroke: var(--accent); stroke-width: 3; }
+.loc:hover .location.selected { stroke-width: 4.5; }
+.map-wrap.selecting .loc { cursor: copy; }
 .map-wrap.selecting .region, .map-wrap.selecting .location { cursor: copy; }
 
 /* A régiószűrő lenyíló menüje a sáv teljes szélességéhez igazodik, így nem lóg ki a lapról. */

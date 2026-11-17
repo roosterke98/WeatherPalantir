@@ -124,25 +124,47 @@ export default function ChoroplethMap({ geo, locations, cube, loading, level, pe
     }
 
     // --- Helyszínek ---
+    // Minden helyszín egy átlátszatlan magból (a jelölő-/kijelölési kör) és egy nagyobb, a középponttól
+    // kifelé egyre áttetszőbb udvarból áll; az udvar a kurzor alatt kiemelődik.
     const locRows = level === 'location' ? byMember : new Map();
-    svg
+    const core = level === 'location' ? 8 : 4.5;
+    const locFill = (l) => (level === 'location' && locRows.has(String(l.locationKey)) ? fillOf(locRows.get(String(l.locationKey))) : null);
+    const locs = svg
       .select('g.locations')
-      .selectAll('circle')
+      .selectAll('g.loc')
       .data(locations.filter((l) => l.isActive), (l) => l.locationKey)
-      .join('circle')
+      .join((enter) => {
+        const g = enter.append('g');
+        g.append('circle').attr('class', 'loc-halo').attr('mask', 'url(#loc-fade)');
+        g.append('circle').attr('class', 'location');
+        return g;
+      })
+      .attr('class', (l) => (selectedLocations.includes(l.locationKey) ? 'loc selected' : 'loc'))
+      .attr('transform', (l) => `translate(${projection([l.longitude, l.latitude])})`)
+      .style('--halo', `${core * 3}px`)
+      .style('--halo-hover', `${core * 3.6}px`);
+    // Inline stílus, mert a CSS szabályok felülírnák a fill attribútumot.
+    // Az udvar kissé sötétebb a magnál, hogy a világos adatszínek is kirajzolódjanak a szürke háttéren.
+    locs.select('circle.loc-halo').style('fill', (l) => {
+      const c = locFill(l);
+      return c ? d3.color(c)?.darker(0.5)?.formatHex() ?? c : null;
+    });
+    locs
+      .select('circle.location')
       .attr('class', (l) => (selectedLocations.includes(l.locationKey) ? 'location selected' : 'location'))
-      .attr('cx', (l) => projection([l.longitude, l.latitude])[0])
-      .attr('cy', (l) => projection([l.longitude, l.latitude])[1])
-      .attr('r', level === 'location' ? 8 : 4.5)
-      // Inline stílus, mert a .location CSS szabály felülírná a fill attribútumot.
-      .style('fill', (l) => (level === 'location' && locRows.has(String(l.locationKey)) ? fillOf(locRows.get(String(l.locationKey))) : null))
+      .attr('r', core)
+      .style('fill', (l) => locFill(l));
+    locs
       .on('click', (event, l) => {
         event.stopPropagation();
         onLocationClick(l);
       })
       .on('pointermove', (event, l) => {
         const row = locRows.get(String(l.locationKey));
-        const lines = [`<strong>${l.name ?? 'Helyszín'}</strong>`, `<span class="muted">${l.regionName ?? ''}, ${l.countryName ?? ''}</span>`];
+        const lines = [
+          `<strong>${l.name ?? 'Helyszín'}</strong> <span class="muted">(${formatCoord(l.latitude, 'É', 'D')}, ${formatCoord(l.longitude, 'K', 'Ny')})</span>`,
+          `<span class="muted">${l.regionName ?? ''}, ${l.countryName ?? ''}</span>`,
+        ];
         if (row) for (const m of [fillMeasure, glyphMeasure].filter(Boolean)) lines.push(`${m.label}: <b>${formatValue(row.values[m.key], m)}</b>`);
         lines.push(
           `<span class="muted">${
@@ -163,6 +185,17 @@ export default function ChoroplethMap({ geo, locations, cube, loading, level, pe
       <div className="map-period">{period ? formatPeriod(period, cube?.grain) : ''}</div>
       {loading && <div className="overlay-loading">Frissítés…</div>}
       <svg ref={svgRef} width={width} height={height + legendH} role="img" aria-label={`Térkép: ${measure.label}`}>
+        <defs>
+          {/* A helyszínek udvarának maszkja: középen átlátszatlan, a széle felé fokozatosan elhalványul. */}
+          <radialGradient id="loc-fade-grad">
+            <stop offset="0%" stopColor="#fff" stopOpacity="1" />
+            <stop offset="50%" stopColor="#fff" stopOpacity="0.75" />
+            <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+          </radialGradient>
+          <mask id="loc-fade" maskContentUnits="objectBoundingBox">
+            <rect width="1" height="1" fill="url(#loc-fade-grad)" />
+          </mask>
+        </defs>
         <g className="regions" />
         <g className="glyphs" />
         <g className="locations" />
@@ -171,6 +204,12 @@ export default function ChoroplethMap({ geo, locations, cube, loading, level, pe
       <div ref={tipRef} className="tooltip" />
     </div>
   );
+}
+
+/** Földrajzi koordináta fokban, égtáj-betűvel (pl. 47.4979° É). */
+function formatCoord(v, pos, neg) {
+  if (v == null) return '–';
+  return `${Math.abs(v).toFixed(4)}° ${v >= 0 ? pos : neg}`;
 }
 
 export function showTip(tip, event, container, html) {
