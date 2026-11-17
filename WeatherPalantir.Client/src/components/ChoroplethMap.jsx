@@ -22,6 +22,7 @@ export default function ChoroplethMap({ geo, locations, cube, loading, level, pe
   // Melyik paraméter színez és melyik rajzol jelet.
   const fillMeasure = measure.mapEncodings.includes('fill') ? measure : secondary;
   const glyphMeasure = fillMeasure === measure ? secondary : measure;
+  const speedArrows = fillMeasure?.colorScheme === 'wind' && glyphMeasure?.key === 'windDirection';
 
   const rows = cube?.level === level ? cube.rows : [];
   const rowsAtPeriod = useMemo(
@@ -98,13 +99,19 @@ export default function ChoroplethMap({ geo, locations, cube, loading, level, pe
     const gGlyph = svg.select('g.glyphs');
     gGlyph.selectAll('*').remove();
     if (glyphMeasure?.key === 'windDirection') {
+      // Szélsebesség színezése mellett a nyíl hossza a sebességgel arányos, egyébként egységes.
+      const half = speedArrows
+        ? d3.scaleLinear([0, d3.max(rows, (r) => r.values[fillMeasure.key]) || 1], [7, 22]).clamp(true)
+        : () => 18;
       for (const r of glyphRows) {
         const p = anchor(r);
         if (!p) continue;
+        const h = half(speedArrows ? r.values[fillMeasure.key] ?? 0 : 0);
+        const d = `M0,${-h} L0,${h} M-6,${h - 8} L0,${h} L6,${h - 8}`;
         // A meteorológiai szélirány azt jelzi, honnan fúj; a nyíl a fújás irányába mutat.
         const g = gGlyph.append('g').attr('transform', `translate(${p[0]},${p[1]}) rotate(${r.values.windDirection + 180})`);
-        g.append('path').attr('class', 'arrow-halo').attr('d', 'M0,-18 L0,18 M-6,10 L0,18 L6,10');
-        g.append('path').attr('class', 'arrow').attr('d', 'M0,-18 L0,18 M-6,10 L0,18 L6,10');
+        g.append('path').attr('class', 'arrow-halo').attr('d', d);
+        g.append('path').attr('class', 'arrow').attr('d', d);
       }
     } else if (glyphMeasure) {
       const max = d3.max(rows, (r) => r.values[glyphMeasure.key]) || 1;
@@ -148,8 +155,8 @@ export default function ChoroplethMap({ geo, locations, cube, loading, level, pe
       })
       .on('pointerleave', () => tip.style('opacity', 0));
 
-    drawLegend(svg.select('g.legend'), width, height, color, fillMeasure, glyphMeasure, noData);
-  }, [geo, locations, rows, rowsAtPeriod, level, projection, fillMeasure, glyphMeasure, selectedRegions, selectedLocations, selectMode, width, height, onRegionClick, onLocationClick, wrapRef, theme]);
+    drawLegend(svg.select('g.legend'), width, height, color, fillMeasure, glyphMeasure, noData, speedArrows);
+  }, [geo, locations, rows, rowsAtPeriod, level, projection, fillMeasure, glyphMeasure, speedArrows, selectedRegions, selectedLocations, selectMode, width, height, onRegionClick, onLocationClick, wrapRef, theme]);
 
   return (
     <div className={selectMode ? 'map-wrap selecting' : 'map-wrap'} ref={wrapRef}>
@@ -179,7 +186,7 @@ export function showTip(tip, event, container, html) {
     .style('transform', flip ? 'translateX(-100%)' : 'none');
 }
 
-function drawLegend(g, width, height, color, fillMeasure, glyphMeasure, noData) {
+function drawLegend(g, width, height, color, fillMeasure, glyphMeasure, noData, speedArrows) {
   g.selectAll('*').remove();
   g.attr('transform', `translate(16, ${height + 8})`);
   let x = 0;
@@ -207,7 +214,7 @@ function drawLegend(g, width, height, color, fillMeasure, glyphMeasure, noData) 
     const gl = g.append('g').attr('transform', `translate(${x},10)`);
     if (glyphMeasure.key === 'windDirection') {
       gl.append('path').attr('class', 'arrow').attr('d', 'M0,0 L22,0 M16,-5 L22,0 L16,5');
-      gl.append('text').attr('class', 'legend-label').attr('x', 30).attr('y', 4).text('Szélirány (fújás iránya)');
+      gl.append('text').attr('class', 'legend-label').attr('x', 30).attr('y', 4).text(speedArrows ? 'Szélirány (a nyíl hossza a sebességgel arányos)' : 'Szélirány (fújás iránya)');
     } else {
       gl.append('circle').attr('class', 'bubble').attr('cx', 8).attr('cy', 0).attr('r', 8);
       gl.append('text').attr('class', 'legend-label').attr('x', 22).attr('y', 4).text(`${glyphMeasure.label} (buborék mérete)`);

@@ -59,7 +59,10 @@ export default function AnalysisView({ meta }) {
     }
   }, [state.secondaryOn, secondary, state.secondary]);
 
-  const cubeMeasures = [measure.key, secondary?.key].filter(Boolean);
+  // Szélsebesség (színskála) mellé a térkép magától irány-nyilakat rajzol, ha nincs más másodlagos paraméter.
+  const mapSecondary = secondary ?? (measure.colorScheme === 'wind' ? measuresByKey.windDirection : null);
+
+  const cubeMeasures = [measure.key, mapSecondary?.key].filter(Boolean);
   const baseParams = cubeParams(state);
   const key = JSON.stringify(baseParams);
 
@@ -134,7 +137,7 @@ export default function AnalysisView({ meta }) {
       <section className="grid-top">
         <div className="card map-card">
           <div className="card-head">
-            <h2>Térkép – {measure.label}{secondary ? ` + ${secondary.label}` : ''}</h2>
+            <h2>Térkép – {measure.label}{mapSecondary ? ` + ${mapSecondary.label}` : ''}</h2>
             <div className="card-tools">
               <span className="muted small">
                 {selectMode
@@ -165,7 +168,7 @@ export default function AnalysisView({ meta }) {
             level={state.level}
             period={currentPeriod}
             measure={measure}
-            secondary={secondary}
+            secondary={mapSecondary}
             selectedRegions={highlightedRegions}
             selectedLocations={state.locations}
             selectMode={selectMode}
