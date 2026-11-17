@@ -85,4 +85,14 @@ export const api = {
   geocode: (name, signal) => request('/geocoding/search', { params: { name, count: 10, language: 'hu' }, signal }),
   newLocations: (signal) => request('/newlocations', { signal }),
   addNewLocation: (body) => request('/newlocations', { method: 'POST', body }),
+  /**
+   * Fordított geokódolás (koordináta → településnév) a BigDataCloud kliensoldali, kulcs nélküli végpontjával.
+   * A végpont böngészőből való hívásra készült, ezért nem a backenden keresztül megy.
+   */
+  reverseGeocode: async (latitude, longitude, signal) => {
+    const q = new URLSearchParams({ latitude: latitude.toFixed(6), longitude: longitude.toFixed(6), localityLanguage: 'hu' });
+    const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?${q}`, { signal });
+    if (!res.ok) throw new ApiError(`A helyszín nevének feloldása sikertelen (HTTP ${res.status})`, res.status);
+    return res.json();
+  },
 };

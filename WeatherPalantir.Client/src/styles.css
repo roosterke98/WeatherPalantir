@@ -383,6 +383,22 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .loc:hover .location { stroke: var(--accent); stroke-width: 3; }
 .loc:hover .location.selected { stroke-width: 4.5; }
 .map-wrap.selecting .loc { cursor: copy; }
+
+/* --- Új helyszín felvétele a térképről --- */
+.pick-bg { fill: transparent; pointer-events: none; }
+.map-wrap.picking .pick-bg { pointer-events: all; }
+.map-wrap.picking svg, .map-wrap.picking .region { cursor: crosshair; }
+.map-wrap.picking .loc { cursor: not-allowed; }
+.pick-marker { pointer-events: none; }
+.pick-panel { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin: 8px 0; background: var(--surface); }
+.pick-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin-bottom: 6px; }
+.pick-panel dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 0 0 8px; font-size: 13px; }
+.pick-panel dt { color: var(--text-2); }
+.pick-panel dd { margin: 0; }
+.pick-panel .field { margin-bottom: 8px; }
+.pick-panel .field input { width: 100%; }
+.alert.info { background: rgba(42, 120, 214, 0.1); border: 1px solid rgba(42, 120, 214, 0.3); }
+.alert.small { font-size: 12px; padding: 6px 10px; }
 .map-wrap.selecting .region, .map-wrap.selecting .location { cursor: copy; }
 
 /* A régiószűrő lenyíló menüje a sáv teljes szélességéhez igazodik, így nem lóg ki a lapról. */

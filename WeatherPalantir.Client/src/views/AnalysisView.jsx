@@ -6,6 +6,7 @@ import { parsePeriod } from '../utils/time.js';
 import FilterBar from '../components/FilterBar.jsx';
 import OlapBar from '../components/OlapBar.jsx';
 import ChoroplethMap from '../components/ChoroplethMap.jsx';
+import MapPickPanel from '../components/MapPickPanel.jsx';
 import TimeSlider from '../components/TimeSlider.jsx';
 import KpiCards from '../components/KpiCards.jsx';
 import TimeSeriesChart from '../components/TimeSeriesChart.jsx';
@@ -89,6 +90,28 @@ export default function AnalysisView({ meta }) {
   const toggleFocus = useCallback((memberKey) => setFocus((f) => (f != null ? null : String(memberKey))), []);
   useEffect(() => setFocus(null), [state.level]);
   const [selectMode, setSelectMode] = useState(false);
+  // Új helyszín felvétele a térképre kattintva (a kijelölő móddal kölcsönösen kizárják egymást).
+  const [pickMode, setPickMode] = useState(false);
+  const [picked, setPicked] = useState(null);
+  const [pickMessage, setPickMessage] = useState(null);
+  const queue = useFetch((signal) => api.newLocations(signal), [pickMode], { enabled: pickMode });
+  const takenNames = useMemo(
+    () => new Set([
+      ...meta.locations.map((l) => l.name),
+      ...(queue.data ?? []).filter((q) => !['Failed', 'Error'].includes(q.status)).map((q) => q.cityName),
+    ].filter(Boolean).map((n) => n.trim().toLocaleLowerCase('hu'))),
+    [meta.locations, queue.data],
+  );
+  const togglePickMode = () => {
+    setPickMode((m) => !m);
+    setSelectMode(false);
+    setPicked(null);
+    setPickMessage(null);
+  };
+  const onPick = useCallback((c) => {
+    setPicked(c);
+    setPickMessage(null);
+  }, []);
 
   // Másodlagos paraméter csak olyan lehet, amely vizuálisan nem takarja az elsődlegeset:
   // színezés (fill) mellé jel (glyph: irányvonal, buborék), jel mellé színezés.
@@ -209,7 +232,9 @@ export default function AnalysisView({ meta }) {
             <h2>Térkép – {measure.label}{mapSecondary ? ` + ${mapSecondary.label}` : ''}</h2>
             <div className="card-tools">
               <span className="muted small">
-                {selectMode
+                {pickMode
+                  ? 'Kattintás a térkép egy pontjára: felvétel új helyszínként'
+                  : selectMode
                   ? 'Kattintás egy megyére vagy helyszínre: kijelölés / kivétel'
                   : `Kattintás egy helyszínre: lefúrás a helyszínig · ${
                       !focusCountry && state.mapCountries.length > 1 ? 'országra: szűkítés' : 'megyére / tartományra: szűkítés'
@@ -222,13 +247,39 @@ export default function AnalysisView({ meta }) {
                 className={selectMode ? 'btn small toggle active' : 'btn small toggle'}
                 aria-pressed={selectMode}
                 title="Bekapcsolva a térkép elemeire kattintva jelölheted ki a vizsgált helyszíneket"
-                onClick={() => setSelectMode((m) => !m)}
+                onClick={() => {
+                  setSelectMode((m) => !m);
+                  setPickMode(false);
+                  setPicked(null);
+                }}
               >
                 {selectMode ? '✓ Helyszínek kijelölése' : 'Helyszínek kijelölése'}
                 {state.locations.length > 0 && selectMode ? ` (${state.locations.length})` : ''}
               </button>
+              <button
+                className={pickMode ? 'btn small toggle active' : 'btn small toggle'}
+                aria-pressed={pickMode}
+                title="Bekapcsolva a térkép egy pontjára kattintva új helyszínt vehetsz fel a betöltési sorba"
+                onClick={togglePickMode}
+              >
+                {pickMode ? '✓ Új helyszín a térképről' : 'Új helyszín a térképről'}
+              </button>
             </div>
           </div>
+          {pickMode && picked && (
+            <MapPickPanel
+              point={picked}
+              takenNames={takenNames}
+              onResolved={(name) => setPicked((p) => (p && p.latitude === picked.latitude && p.longitude === picked.longitude ? { ...p, name } : p))}
+              onCancel={() => setPicked(null)}
+              onDone={(created) => {
+                setPicked(null);
+                queue.reload();
+                setPickMessage(`${created.cityName} felvéve a betöltési sorba (#${created.queueId}). Az ETL a következő óra egészkor tölti be.`);
+              }}
+            />
+          )}
+          {pickMode && pickMessage && <div className="alert success">{pickMessage}</div>}
           <ChoroplethMap
             geo={visibleGeo.geo}
             locations={visibleGeo.locations}
@@ -241,6 +292,9 @@ export default function AnalysisView({ meta }) {
             selectedRegions={highlightedRegions}
             selectedLocations={state.locations}
             selectMode={selectMode}
+            pickMode={pickMode}
+            picked={picked}
+            onPick={onPick}
             onRegionClick={(feature) =>
               selectMode
                 ? toggleLocations(pickable.filter((l) => l.regionKey === feature.properties.regionKey).map((l) => l.locationKey))
