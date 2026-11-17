@@ -21,11 +21,15 @@ import PivotTable from '../components/PivotTable.jsx';
 import LocationPicker from '../components/LocationPicker.jsx';
 import CorrelationMatrix from '../components/CorrelationMatrix.jsx';
 import DiurnalChart from '../components/DiurnalChart.jsx';
+import { DroughtTab, SolarTab, WindTab } from './ThemeTabs.jsx';
 
 /** A térkép alatti fülek. */
 const TABS = [
   { key: 'measure', label: 'Paraméter elemzése' },
   { key: 'compare', label: 'Paraméterek összehasonlítása' },
+  { key: 'solar', label: 'Napenergia' },
+  { key: 'wind', label: 'Szélenergia' },
+  { key: 'drought', label: 'Aszály' },
   { key: 'conditions', label: 'Időjárási viszonyok megoszlása' },
   { key: 'table', label: 'Aggregált táblázat' },
 ];
@@ -170,6 +174,25 @@ export default function AnalysisView({ meta }) {
     const i = periods.findIndex((x) => +x === +p);
     if (i >= 0) setPeriodIdx(i);
   };
+  // A tematikus fülek (napenergia, szélenergia, aszály) közös környezete.
+  const ctx = {
+    params: baseParams,
+    paramsKey: key,
+    meta,
+    byKey: measuresByKey,
+    order,
+    focus,
+    onFocus: toggleFocus,
+    grain: state.grain,
+    drillTime,
+    forecastStart,
+    currentPeriod,
+    onBrush: (start, end) => dispatch({ type: 'brushTime', start, end }),
+    onPeriodSelect: selectPeriod,
+    mapMeasure: measure.key,
+    showOnMap: (measureKey) => dispatch({ type: 'set', patch: { measure: measureKey } }),
+  };
+
   return (
     <div className="analysis">
       <div className="analysis-sticky">
@@ -405,6 +428,10 @@ export default function AnalysisView({ meta }) {
           </section>
         </div>
       )}
+
+      {tab === 'solar' && <SolarTab ctx={ctx} />}
+      {tab === 'wind' && <WindTab ctx={ctx} />}
+      {tab === 'drought' && <DroughtTab ctx={ctx} />}
 
       {tab === 'conditions' && (
         <section className="card" role="tabpanel" aria-label="Időjárási viszonyok megoszlása">

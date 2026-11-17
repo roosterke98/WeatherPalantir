@@ -79,6 +79,7 @@ export const api = {
   conditions: (params, signal) => request('/weather/conditions', { params, signal }),
   conditionSeries: (params, signal) => request('/weather/conditions/series', { params, signal }),
   windRose: (params, signal) => request('/weather/windrose', { params, signal }),
+  histogram: (params, signal) => request('/weather/histogram', { params, signal }),
   errorLog: (params, signal) => request('/errorlog', { params, signal }),
   errorPackages: (signal) => request('/errorlog/packages', { signal }),
   geocode: (name, signal) => request('/geocoding/search', { params: { name, count: 10, language: 'hu' }, signal }),
