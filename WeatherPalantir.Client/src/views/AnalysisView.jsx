@@ -20,6 +20,7 @@ import TrendChart from '../components/TrendChart.jsx';
 import PivotTable from '../components/PivotTable.jsx';
 import LocationPicker from '../components/LocationPicker.jsx';
 import CorrelationMatrix from '../components/CorrelationMatrix.jsx';
+import DiurnalChart from '../components/DiurnalChart.jsx';
 
 /** A térkép alatti fülek. */
 const TABS = [
@@ -30,6 +31,46 @@ const TABS = [
 ];
 
 const NO_FEATURES = [];
+
+/**
+ * Az elsődleges paraméterhez illő kiegészítő ábra a „Paraméter elemzése” fülön:
+ *  - panels: összetartozó paraméterek egymás alatti, közös időtengelyű idősorai,
+ *  - diurnal: átlagos napi menet (a nap órái szerint),
+ *  - rose: szélrózsa a napi menettel.
+ */
+function extraFor(measure) {
+  const k = measure.key;
+  if (k === 'windDirection') return null;
+  if (measure.group === 'Csapadék') {
+    return {
+      kind: 'panels',
+      title: 'Csapadék és csapadékvalószínűség',
+      hint: 'A mennyiség oszlopokkal, a valószínűség külön diagramon (csak az előrejelzésekhez érhető el)',
+      keys: [k === 'precipitationProbability' ? 'precipitation' : k, 'precipitationProbability'],
+    };
+  }
+  if (measure.group === 'Szél') {
+    return { kind: 'rose', title: 'Szélrózsa és a szélsebesség napi menete', hint: 'A szél gyakorisága égtájak és sebesség szerint · óránkénti átlagok a nap folyamán', keys: [k] };
+  }
+  if (measure.group === 'Napsugárzás') {
+    return {
+      kind: 'diurnal',
+      title: 'A napsugárzás átlagos napi alakulása (W/m²)',
+      hint: 'A kijelölt időszak óránkénti átlagai · globál-, direkt és szórt sugárzás',
+      keys: ['shortwaveRadiation', 'directNormalIrradiance', 'diffuseHorizontalIrradiance'],
+    };
+  }
+  if (k === 'relativeHumidity' || k === 'dewPoint') {
+    return { kind: 'panels', title: 'Páratartalom és harmatpont', hint: 'Két összekapcsolt idősor közös időtengelyen és szálkereszttel', keys: ['relativeHumidity', 'dewPoint'] };
+  }
+  if (k === 'cloudCover') {
+    return { kind: 'panels', title: 'Felhőzet és besugárzás', hint: 'Két összekapcsolt idősor közös időtengelyen és szálkereszttel', keys: ['cloudCover', 'shortwaveRadiation'] };
+  }
+  if (measure.group === 'Vízmérleg') {
+    return { kind: 'panels', title: 'Csapadék, párolgás és telítési hiány', hint: 'Összekapcsolt idősorok közös időtengelyen', keys: ['precipitation', 'evapotranspiration', 'vapourPressureDeficit'] };
+  }
+  return { kind: 'diurnal', title: `${measure.label} (${measure.unit}) – átlagos napi menet`, hint: 'A kijelölt időszak óránkénti átlagai a nap órái szerint', keys: [k] };
+}
 
 export default function AnalysisView({ meta }) {
   const [state, dispatch] = useReducer(reducer, meta, createInitialState);
@@ -61,6 +102,7 @@ export default function AnalysisView({ meta }) {
 
   // Szélsebesség (színskála) mellé a térkép magától irány-nyilakat rajzol, ha nincs más másodlagos paraméter.
   const mapSecondary = secondary ?? (measure.colorScheme === 'wind' ? measuresByKey.windDirection : null);
+  const extra = extraFor(measure);
 
   const cubeMeasures = [measure.key, mapSecondary?.key].filter(Boolean);
   const baseParams = cubeParams(state);
@@ -69,7 +111,7 @@ export default function AnalysisView({ meta }) {
   const cube = useFetch((signal) => api.cube({ ...baseParams, measures: cubeMeasures }, signal), [key, cubeMeasures.join()]);
   const conditions = useFetch((signal) => api.conditions({ ...baseParams, conditions: [] }, signal), [key]);
   const needsWind = measure.key === 'windDirection';
-  const windRose = useFetch((signal) => api.windRose(baseParams, signal), [key], { enabled: needsWind });
+  const windRose = useFetch((signal) => api.windRose(baseParams, signal), [key], { enabled: tab === 'measure' && (needsWind || extra?.kind === 'rose') });
 
   const tableKey = state.tableMeasures.join();
   const table = useFetch(
@@ -124,6 +166,10 @@ export default function AnalysisView({ meta }) {
     [state.regions, state.locations, meta.locations],
   );
 
+  const selectPeriod = (p) => {
+    const i = periods.findIndex((x) => +x === +p);
+    if (i >= 0) setPeriodIdx(i);
+  };
   return (
     <div className="analysis">
       <div className="analysis-sticky">
@@ -252,13 +298,42 @@ export default function AnalysisView({ meta }) {
                 onBrush={(start, end) => dispatch({ type: 'brushTime', start, end })}
                 focus={focus}
                 onFocus={toggleFocus}
-                onPeriodSelect={(p) => {
-                  const i = periods.findIndex((x) => +x === +p);
-                  if (i >= 0) setPeriodIdx(i);
-                }}
+                onPeriodSelect={selectPeriod}
               />
             )}
           </section>
+
+          {extra && (
+            <section className="card">
+              <div className="card-head">
+                <h2>{extra.title}</h2>
+                <span className="muted small">{extra.hint}</span>
+              </div>
+              {extra.kind === 'panels' && (
+                <MultiMeasureChart
+                  params={baseParams}
+                  paramsKey={key}
+                  measures={meta.measures}
+                  selected={extra.keys}
+                  order={order}
+                  forecastStart={forecastStart}
+                  onDrill={(period) => drillTime(period)}
+                  focus={focus}
+                  onFocus={toggleFocus}
+                  fixed
+                />
+              )}
+              {extra.kind === 'diurnal' && (
+                <DiurnalChart params={baseParams} paramsKey={key} defs={extra.keys.map((k) => measuresByKey[k])} order={order} focus={focus} onFocus={toggleFocus} />
+              )}
+              {extra.kind === 'rose' && (
+                <div className="wind-grid">
+                  <WindRose data={windRose.data} loading={windRose.loading} />
+                  <DiurnalChart params={baseParams} paramsKey={key} defs={extra.keys.map((k) => measuresByKey[k])} order={order} focus={focus} onFocus={toggleFocus} />
+                </div>
+              )}
+            </section>
+          )}
 
           <section className="card">
             <div className="card-head">

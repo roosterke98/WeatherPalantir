@@ -449,3 +449,15 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 
 /* A négy fül keskeny képernyőn több sorba törik. */
 .tabs { flex-wrap: wrap; }
+
+/* --- Tematikus fülek (napenergia, szélenergia, aszály) és a napi menet --- */
+.grid-line { stroke: var(--grid); }
+.axis-line { stroke: var(--axis); }
+.tick-label { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.ref-line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 3; }
+.ref-label { fill: var(--text-2); font-size: 11px; }
+.operating-zone { fill: var(--accent); fill-opacity: 0.06; }
+.bar.clickable { cursor: pointer; }
+.theme-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.theme-tools .theme-gap { margin-left: 12px; }
+.wind-grid > .chart-wrap { min-width: 0; }

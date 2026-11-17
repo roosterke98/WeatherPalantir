@@ -20,8 +20,9 @@ const GAP = 10;
  * Több paraméter egyszerre, közös időtengelyen: paraméterenként egy panel saját értéktengellyel
  * (nincs kettős tengely), tagonként (helyszín / régió / ország) egy sorozat. A részletesség az elemzés
  * aktuális időbeli szintjét követi. Hover: közös szálkereszt; kattintás: időbeli lefúrás.
+ * A <c>fixed</c> módban a paraméterek kötöttek (pl. csapadék és csapadékvalószínűség), a választó nem látszik.
  */
-export default function MultiMeasureChart({ params, paramsKey, measures, selected, onSelectedChange, order, forecastStart, onDrill, focus, onFocus }) {
+export default function MultiMeasureChart({ params, paramsKey, measures, selected, onSelectedChange, order, forecastStart, onDrill, focus, onFocus, fixed = false }) {
   const theme = useTheme();
   const [wrapRef, width] = useWidth(900);
   const svgRef = useRef(null);
@@ -175,7 +176,7 @@ export default function MultiMeasureChart({ params, paramsKey, measures, selecte
 
   return (
     <div className="chart-wrap" ref={wrapRef}>
-      <div className="viz-tools">
+      {!fixed && <div className="viz-tools">
         <div className="chips">
           {defs.map((m) => (
             <span key={m.key} className="chip">
@@ -198,7 +199,7 @@ export default function MultiMeasureChart({ params, paramsKey, measures, selecte
             </option>
           ))}
         </select>
-      </div>
+      </div>}
 
       {members.length > 1 && (
         <div className="legend" role="list">
