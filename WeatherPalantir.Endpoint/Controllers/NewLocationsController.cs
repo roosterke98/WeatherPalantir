@@ -42,8 +42,8 @@ public sealed class NewLocationsController(IMetaRepository meta, IGeocodingServi
             return Problem(title: "Érvénytelen koordináta", detail: "A szélesség −90 és 90, a hosszúság −180 és 180 közé kell essen.", statusCode: 400);
         if (string.IsNullOrWhiteSpace(request.CountryCode) || request.CountryCode.Trim().Length > 20)
             return Problem(title: "Érvénytelen országkód", detail: "Az országkód megadása kötelező.", statusCode: 400);
-        if (request.CityName?.Length > 200)
-            return Problem(title: "Túl hosszú név", detail: "A település neve legfeljebb 200 karakter lehet.", statusCode: 400);
+        if (request.CityName?.Length > 200 || request.Locality?.Length > 200 || request.City?.Length > 200)
+            return Problem(title: "Túl hosszú név", detail: "A helyszín, a település és a város neve legfeljebb 200 karakter lehet.", statusCode: 400);
 
         // Bármely ország helyszíne felvehető: ha az ország még nem szerepel az adattárházban,
         // az ETL a helyszínnel együtt betölti az ország régióinak (megyéinek) határait is.

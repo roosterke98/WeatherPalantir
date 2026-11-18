@@ -62,6 +62,8 @@ export default function MapPickPanel({ point, takenNames, onResolved, onDone, on
         longitude: point.longitude,
         countryCode: geo.countryCode,
         cityName: name.trim(),
+        locality: geo.locality || null,
+        city: geo.city || null,
       });
       onDone(created);
     } catch (e) {

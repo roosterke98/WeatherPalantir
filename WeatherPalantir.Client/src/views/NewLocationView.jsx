@@ -32,11 +32,16 @@ export default function NewLocationView({ meta, onLocationsChanged, active }) {
     setSaving(true);
     setMessage(null);
     try {
+      // A település (locality) és a város / járás (city) a BigDataCloud fordított geokódolásából jön;
+      // ha a szolgáltatás nem érhető el, a helyszín ezek nélkül is felvehető.
+      const geo = await api.reverseGeocode(selected.latitude, selected.longitude).catch(() => null);
       const created = await api.addNewLocation({
         latitude: selected.latitude,
         longitude: selected.longitude,
         countryCode: selected.countryCode,
         cityName: selected.name,
+        locality: geo?.locality || null,
+        city: geo?.city || null,
       });
       setMessage({
         type: 'success',
@@ -102,7 +107,7 @@ export default function NewLocationView({ meta, onLocationsChanged, active }) {
           <table className="data-table">
             <thead>
               <tr>
-                <th>#</th><th>Település</th><th>Ország</th><th className="num">Szélesség</th><th className="num">Hosszúság</th>
+                <th>#</th><th>Helyszín</th><th>Település</th><th>Város / járás</th><th>Ország</th><th className="num">Szélesség</th><th className="num">Hosszúság</th>
                 <th>Állapot</th><th>Kérés ideje</th><th>Befejezés</th><th>Hibaüzenet</th>
               </tr>
             </thead>
@@ -111,6 +116,8 @@ export default function NewLocationView({ meta, onLocationsChanged, active }) {
                 <tr key={q.queueId}>
                   <td>{q.queueId}</td>
                   <td>{q.cityName ?? '–'}</td>
+                  <td>{q.locality ?? '–'}</td>
+                  <td>{q.city ?? '–'}</td>
                   <td>{q.countryCode}</td>
                   <td className="num">{q.latitude.toFixed(4)}</td>
                   <td className="num">{q.longitude.toFixed(4)}</td>
@@ -121,7 +128,7 @@ export default function NewLocationView({ meta, onLocationsChanged, active }) {
                 </tr>
               ))}
               {queue.data && !queue.data.length && (
-                <tr><td colSpan={9} className="empty">A sor üres.</td></tr>
+                <tr><td colSpan={11} className="empty">A sor üres.</td></tr>
               )}
             </tbody>
           </table>

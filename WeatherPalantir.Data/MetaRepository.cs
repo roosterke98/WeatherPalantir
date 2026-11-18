@@ -51,7 +51,7 @@ public sealed class MetaRepository(IDbConnectionFactory db) : IMetaRepository
     {
         const string sql = """
             SELECT QueueId, CAST(Latitude AS float) AS Latitude, CAST(Longitude AS float) AS Longitude,
-                   CountryCode, CityName, [Status], RequestDate, FinishDate, ErrorMessage
+                   CountryCode, CityName, [Status], RequestDate, FinishDate, ErrorMessage, Locality, City
             FROM meta.NewLocation
             ORDER BY RequestDate DESC, QueueId DESC;
             """;
@@ -81,10 +81,11 @@ public sealed class MetaRepository(IDbConnectionFactory db) : IMetaRepository
     {
         // A Status és RequestDate oszlopok alapértéke ('Pending', GETDATE()) az adatbázisban van definiálva.
         const string sql = """
-            INSERT INTO meta.NewLocation (Latitude, Longitude, CountryCode, CityName)
+            INSERT INTO meta.NewLocation (Latitude, Longitude, CountryCode, CityName, Locality, City)
             OUTPUT inserted.QueueId, CAST(inserted.Latitude AS float) AS Latitude, CAST(inserted.Longitude AS float) AS Longitude,
-                   inserted.CountryCode, inserted.CityName, inserted.[Status], inserted.RequestDate, inserted.FinishDate, inserted.ErrorMessage
-            VALUES (@Latitude, @Longitude, @CountryCode, @CityName);
+                   inserted.CountryCode, inserted.CityName, inserted.[Status], inserted.RequestDate, inserted.FinishDate, inserted.ErrorMessage,
+                   inserted.Locality, inserted.City
+            VALUES (@Latitude, @Longitude, @CountryCode, @CityName, @Locality, @City);
             """;
         await using var conn = await db.OpenAsync(ct);
         return await conn.QuerySingleAsync<NewLocationDto>(new CommandDefinition(sql, new
@@ -92,7 +93,9 @@ public sealed class MetaRepository(IDbConnectionFactory db) : IMetaRepository
             Latitude = Math.Round((decimal)request.Latitude, 6),
             Longitude = Math.Round((decimal)request.Longitude, 6),
             CountryCode = request.CountryCode.Trim().ToUpperInvariant(),
-            CityName = string.IsNullOrWhiteSpace(request.CityName) ? null : request.CityName.Trim()
+            CityName = string.IsNullOrWhiteSpace(request.CityName) ? null : request.CityName.Trim(),
+            Locality = string.IsNullOrWhiteSpace(request.Locality) ? null : request.Locality.Trim(),
+            City = string.IsNullOrWhiteSpace(request.City) ? null : request.City.Trim()
         }, cancellationToken: ct));
     }
 }

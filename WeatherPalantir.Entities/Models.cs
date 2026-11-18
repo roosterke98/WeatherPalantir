@@ -78,7 +78,9 @@ public sealed record NewLocationDto(
     string Status,
     DateTime RequestDate,
     DateTime? FinishDate,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    string? Locality,
+    string? City);
 
 public sealed class NewLocationRequest
 {
@@ -86,6 +88,12 @@ public sealed class NewLocationRequest
     public double Longitude { get; set; }
     public string CountryCode { get; set; } = "";
     public string? CityName { get; set; }
+
+    /// <summary>A fordított geokódolás (BigDataCloud) „locality” értéke: település / településrész.</summary>
+    public string? Locality { get; set; }
+
+    /// <summary>A fordított geokódolás „city” értéke: város vagy járás.</summary>
+    public string? City { get; set; }
 }
 
 /// <summary>Az Open-Meteo Geocoding API egy találata, kiegészítve az adattárház régió-illesztésével.</summary>
