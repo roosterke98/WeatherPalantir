@@ -33,10 +33,21 @@ internal static class SqlFragments
         _ => throw new ArgumentOutOfRangeException(nameof(grain))
     };
 
+    private const string LocationNameExpr =
+        "COALESCE(l.[Name], CONCAT(CAST(l.Latitude AS decimal(7,3)), N', ', CAST(l.Longitude AS decimal(7,3))))";
+
+    // A város / járás és a település nem önálló dimenziótábla, hanem a helyszín attribútuma (fordított geokódolásból),
+    // ezért a kulcsuk a hierarchiában fölöttük álló szintekből képzett összetett szöveg: „régió|város” és „régió|város|település”.
+    // Hiányzó érték esetén a szint a közvetlenül alatta lévőre esik vissza (a kliens ugyanígy képzi a kulcsot).
+    private const string CityPart = "COALESCE(l.City, l.Locality, l.[Name], CONCAT(N'#', l.LocationKey))";
+    private const string LocalityPart = "COALESCE(l.Locality, l.[Name], CONCAT(N'#', l.LocationKey))";
+    private const string CityKeyExpr = $"CONCAT(COALESCE(l.RegionKey, 0), N'|', {CityPart})";
+
     public static (string Key, string Name) MemberExpr(GeoLevel level) => level switch
     {
-        GeoLevel.Location => ("CAST(l.LocationKey AS nvarchar(20))",
-            "COALESCE(l.[Name], CONCAT(CAST(l.Latitude AS decimal(7,3)), N', ', CAST(l.Longitude AS decimal(7,3))))"),
+        GeoLevel.Location => ("CAST(l.LocationKey AS nvarchar(20))", LocationNameExpr),
+        GeoLevel.Locality => ($"CONCAT({CityKeyExpr}, N'|', {LocalityPart})", $"COALESCE(l.Locality, {LocationNameExpr})"),
+        GeoLevel.City => (CityKeyExpr, $"COALESCE(l.City, l.Locality, {LocationNameExpr})"),
         GeoLevel.Region => ("COALESCE(CAST(r.RegionKey AS nvarchar(20)), N'0')", "COALESCE(r.RegionName, N'Ismeretlen régió')"),
         GeoLevel.Country => ("COALESCE(CAST(r.CountryCode AS nvarchar(20)), N'?')", $"COALESCE({CountryNameExpr}, N'Ismeretlen ország')"),
         GeoLevel.All => ("N'ALL'", "N'Összes helyszín'"),

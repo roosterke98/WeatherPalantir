@@ -24,7 +24,7 @@ public sealed class DimensionRepository(IDbConnectionFactory db) : IDimensionRep
                    CAST(l.Latitude AS float) AS Latitude, CAST(l.Longitude AS float) AS Longitude,
                    l.RegionKey, r.RegionName, CAST(r.CountryCode AS nvarchar(3)) AS CountryCode,
                    {SqlFragments.CountryNameExpr} AS CountryName,
-                   l.IsActive
+                   l.IsActive, l.Locality, l.City
             FROM dm.DimLocation l
             LEFT JOIN dm.DimRegion r ON r.RegionKey = l.RegionKey
             LEFT JOIN meta.CountryDictionary cd ON cd.Alpha3Code = r.CountryCode

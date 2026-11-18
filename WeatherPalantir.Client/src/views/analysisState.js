@@ -3,12 +3,33 @@ import { daysBetween, finerGrain, MAX_HOURLY_DAYS, parseIsoDate, parsePeriod, pe
 
 /**
  * Az elemző nézet OLAP állapota és műveletei:
- *  - roll-up / drill-down az idő (év → hónap → nap → óra) és a földrajz (ország → régió → helyszín) hierarchiájában,
+ *  - roll-up / drill-down az idő (év → hónap → nap → óra) és a földrajz
+ *    (ország → régió → város / járás → település → helyszín) hierarchiájában,
  *  - slice: egy dimenzióérték rögzítése (pl. egy megye, csak előrejelzés),
  *  - dice: több dimenzió menti szűrés egyszerre (régiók, időjárási viszonyok, időszak).
  */
 
-const NEXT_LEVEL = { all: 'country', country: 'region', region: 'location', location: 'location' };
+const NEXT_LEVEL = { all: 'country', country: 'region', region: 'city', city: 'locality', locality: 'location', location: 'location' };
+
+/** Azok a szintek, amelyeknek nincs saját határa: a térképen a helyszínek pontjai hordozzák az értéküket. */
+export const POINT_LEVELS = ['city', 'locality', 'location'];
+
+// A város / járás és a település kulcsa ugyanúgy képződik, mint a backendben (SqlFragments.MemberExpr):
+// „régió|város” és „régió|város|település”; hiányzó értéknél a szint az alatta lévőre esik vissza.
+const localityPart = (l) => l.locality ?? l.name ?? `#${l.locationKey}`;
+const cityPart = (l) => l.city ?? localityPart(l);
+export const cityKey = (l) => `${l.regionKey ?? 0}|${cityPart(l)}`;
+export const localityKey = (l) => `${cityKey(l)}|${localityPart(l)}`;
+
+/** Egy helyszín tagkulcsa az adott földrajzi szinten (a kocka MemberKey értékével egyezik). */
+export function memberKeyOf(l, level) {
+  if (level === 'location') return String(l.locationKey);
+  if (level === 'locality') return localityKey(l);
+  if (level === 'city') return cityKey(l);
+  if (level === 'region') return String(l.regionKey ?? 0);
+  if (level === 'country') return l.countryCode ?? '?';
+  return 'ALL';
+}
 
 /** A térképen egyszerre megjeleníthető országok legnagyobb száma. */
 export const MAX_MAP_COUNTRIES = 3;
@@ -65,19 +86,26 @@ function withPath(state, geoPath, level) {
   const country = geoPath.find((p) => p.level === 'country');
   const region = geoPath.find((p) => p.level === 'region');
   const location = geoPath.find((p) => p.level === 'location');
+  // A város / járás és a település a helyszíneinek halmazával szeletel (a csomópont hordozza a helyszínkulcsokat).
+  const place = geoPath.find((p) => p.level === 'locality') ?? geoPath.find((p) => p.level === 'city');
   return {
     ...state,
     geoPath,
     level,
     countries: country ? [country.key] : state.mapCountries,
     regions: region ? [Number(region.key)] : geoPath.length ? [] : state.regions,
-    locations: location ? [Number(location.key)] : [],
+    locations: location ? [Number(location.key)] : place ? place.locationKeys : [],
   };
+}
+
+/** A földrajzi útvonal csomópontjaiból adódó (nem kézzel kijelölt) helyszínek. */
+export function pathLocationKeys(geoPath) {
+  return new Set(geoPath.flatMap((p) => (p.level === 'location' ? [Number(p.key)] : p.locationKeys ?? [])));
 }
 
 const rootLevel = (s) => (s.mapCountries.length > 1 ? 'country' : 'region');
 
-/** Egy dimenziótag teljes földrajzi útvonala (ország › régió › helyszín) a metaadatokból. */
+/** Egy dimenziótag teljes földrajzi útvonala (ország › régió › város / járás › település › helyszín) a metaadatokból. */
 export function pathFor(level, key, meta) {
   const regionOf = (rk) => meta.regions.find((r) => r.regionKey === Number(rk));
   const countryNode = (code) => ({ level: 'country', key: code, name: meta.regions.find((r) => r.countryCode === code)?.countryName ?? code });
@@ -86,10 +114,18 @@ export function pathFor(level, key, meta) {
     const r = regionOf(key);
     return r ? [countryNode(r.countryCode), { level: 'region', key: String(r.regionKey), name: r.regionName }] : [];
   }
+  if (level === 'city' || level === 'locality') {
+    const members = meta.locations.filter((l) => memberKeyOf(l, level) === String(key));
+    const l = members[0];
+    if (!l) return [];
+    const parent = level === 'city' ? pathFor('region', l.regionKey, meta) : pathFor('city', cityKey(l), meta);
+    const name = level === 'city' ? cityPart(l) : localityPart(l);
+    return [...parent, { level, key: String(key), name, locationKeys: members.map((m) => m.locationKey) }];
+  }
   if (level === 'location') {
     const l = meta.locations.find((x) => x.locationKey === Number(key));
     if (!l) return [];
-    return [...pathFor('region', l.regionKey, meta), { level: 'location', key: String(l.locationKey), name: l.name }];
+    return [...pathFor('locality', localityKey(l), meta), { level: 'location', key: String(l.locationKey), name: l.name }];
   }
   return [];
 }
@@ -146,21 +182,21 @@ export function reducer(state, action) {
     }
 
     /**
-     * Kattintás a térképen egy régióra vagy helyszínre (action.path: ország › régió [› helyszín]):
+     * Kattintás a térképen egy régióra vagy helyszínre (action.path: ország › régió [› város › település › helyszín]):
      *  - helyszínre kattintva egy lépésben a helyszínig fúr le (a térkép a helyszín régiójára közelít),
      *  - régióra kattintva: ha több ország látszik, először csak a kattintott ország marad a térképen,
-     *    ha már egy ország látszik, a régióra (megyére) szűkít.
+     *    ha már egy ország látszik, a régióra (megyére) szűkít, és a városok / járások szintjére bont.
      */
     case 'mapClick': {
-      const [country, region, location] = action.path;
+      const [country, region] = action.path;
       if (!country) return state;
-      if (location) return withPath(state, [country, region, location], 'location');
+      if (action.path.some((p) => p.level === 'location')) return withPath(state, action.path, 'location');
       const focusedCountry = state.geoPath.find((p) => p.level === 'country');
       const focusedRegion = state.geoPath.find((p) => p.level === 'region');
       if (!focusedCountry && state.mapCountries.length > 1) {
         return withPath(state, [country], ['country', 'all'].includes(state.level) ? 'region' : state.level);
       }
-      if (region && focusedRegion?.key !== region.key) return withPath(state, [country, region], 'location');
+      if (region && focusedRegion?.key !== region.key) return withPath(state, [country, region], NEXT_LEVEL.region);
       return state;
     }
 
@@ -174,12 +210,12 @@ export function reducer(state, action) {
       if (!keys.length) return state;
       const allIn = keys.every((k) => state.locations.includes(k));
       const locations = allIn ? state.locations.filter((k) => !keys.includes(k)) : [...new Set([...state.locations, ...keys])];
-      const geoPath = state.geoPath.filter((p) => p.level !== 'location');
+      const geoPath = state.geoPath.filter((p) => !POINT_LEVELS.includes(p.level));
       return { ...withPath(state, geoPath, locations.length ? 'location' : state.level), locations };
     }
 
     case 'clearLocations': {
-      const geoPath = state.geoPath.filter((p) => p.level !== 'location');
+      const geoPath = state.geoPath.filter((p) => !POINT_LEVELS.includes(p.level));
       return withPath(state, geoPath, state.level);
     }
 
@@ -243,7 +279,7 @@ export function reducer(state, action) {
 export function memberOrder(level, meta) {
   const locs = [...meta.locations].sort((a, b) => a.locationKey - b.locationKey);
   const unique = (xs) => [...new Set(xs.filter((x) => x != null).map(String))];
-  if (level === 'location') return unique(locs.map((l) => l.locationKey));
+  if (POINT_LEVELS.includes(level)) return unique(locs.map((l) => memberKeyOf(l, level)));
   if (level === 'region') return unique([...locs.map((l) => l.regionKey), ...meta.regions.map((r) => r.regionKey)]);
   if (level === 'country') return unique([...locs.map((l) => l.countryCode), ...meta.regions.map((r) => r.countryCode)]);
   return ['ALL'];

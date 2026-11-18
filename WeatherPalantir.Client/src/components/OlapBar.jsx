@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { conditionLabel } from '../utils/wmo.js';
 import { GRAINS } from '../utils/time.js';
-import { availableCountries, MAX_MAP_COUNTRIES } from '../views/analysisState.js';
+import { availableCountries, MAX_MAP_COUNTRIES, pathLocationKeys } from '../views/analysisState.js';
 
 /**
  * OLAP navigáció: földrajzi morzsamenü (felgöngyölítés), időbeli visszalépés,
@@ -10,7 +10,9 @@ import { availableCountries, MAX_MAP_COUNTRIES } from '../views/analysisState.js
 export default function OlapBar({ state, dispatch, meta }) {
   const regionName = (k) => meta.regions.find((r) => r.regionKey === k)?.regionName ?? k;
   const manualRegions = state.regions.filter((k) => !state.geoPath.some((p) => p.level === 'region' && Number(p.key) === k));
-  const pickedLocations = state.locations.filter((k) => !state.geoPath.some((p) => p.level === 'location' && Number(p.key) === k));
+  // A lefúrásból (helyszín, település, város / járás) adódó helyszínek a morzsamenüben látszanak, nem szűrőként.
+  const fromPath = pathLocationKeys(state.geoPath);
+  const pickedLocations = state.locations.filter((k) => !fromPath.has(k));
   const locationName = (k) => meta.locations.find((l) => l.locationKey === k)?.name ?? k;
   const hasFilters = state.geoPath.length || manualRegions.length || pickedLocations.length || state.conditions.length || state.kind !== 'all';
   const prevTime = state.timeStack[state.timeStack.length - 1];

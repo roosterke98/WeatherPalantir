@@ -11,6 +11,8 @@ export const LEVELS = [
   { key: 'all', label: 'Összesen' },
   { key: 'country', label: 'Ország' },
   { key: 'region', label: 'Régió (megye)' },
+  { key: 'city', label: 'Város / járás' },
+  { key: 'locality', label: 'Település' },
   { key: 'location', label: 'Helyszín' },
 ];
 

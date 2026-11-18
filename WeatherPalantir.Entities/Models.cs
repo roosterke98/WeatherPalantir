@@ -3,7 +3,11 @@
 /// <summary>Az időbeli részletesség. A <c>HourOfDay</c> a nap órái szerinti (0–23) átlagos napi menetet adja.</summary>
 public enum TimeGrain { Hour, Day, Month, Year, All, HourOfDay }
 
-public enum GeoLevel { Location, Region, Country, All }
+/// <summary>
+/// A földrajzi hierarchia szintjei a legrészletesebbtől: helyszín → település (locality) → város / járás (city)
+/// → régió (megye) → ország → összesen.
+/// </summary>
+public enum GeoLevel { Location, Locality, City, Region, Country, All }
 
 public enum DataKind { All, Historical, Forecast }
 
@@ -49,7 +53,9 @@ public sealed record LocationDto(
     string? RegionName,
     string? CountryCode,
     string? CountryName,
-    bool IsActive);
+    bool IsActive,
+    string? Locality,
+    string? City);
 
 public sealed record RegionDto(int RegionKey, string CountryCode, string RegionName, string? CountryName);
 

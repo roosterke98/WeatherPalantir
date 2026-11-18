@@ -5,6 +5,7 @@ import { fillScale } from '../utils/colors.js';
 import { formatValue } from '../utils/format.js';
 import { formatPeriod, parsePeriod } from '../utils/time.js';
 import { useTheme } from '../utils/theme.js';
+import { memberKeyOf, POINT_LEVELS } from '../views/analysisState.js';
 
 /**
  * Színezett (choropleth) térkép a régiók határaival (dm.DimRegion → GeoJSON).
@@ -50,8 +51,9 @@ export default function ChoroplethMap({
       if (level === 'region') return byMember.get(String(f.properties.regionKey));
       if (level === 'country') return byMember.get(f.properties.countryCode);
       if (level === 'all') return byMember.get('ALL');
-      return null; // helyszín szinten a pontok hordozzák az értéket
+      return null; // város / település / helyszín szinten a pontok hordozzák az értéket
     };
+    const pointLevel = POINT_LEVELS.includes(level);
 
     const color = fillMeasure ? fillScale(fillMeasure.colorScheme, rows.map((r) => r.values[fillMeasure.key])) : null;
     const noData = getComputedStyle(svgRef.current).getPropertyValue('--map-nodata').trim() || '#e1e0d9';
@@ -101,7 +103,7 @@ export default function ChoroplethMap({
           if (level !== 'region') lines.push(`<span class="muted">${row.memberName} összesítve</span>`);
           for (const m of [fillMeasure, glyphMeasure].filter(Boolean)) lines.push(`${m.label}: <b>${formatValue(row.values[m.key], m)}</b>`);
           lines.push(`<span class="muted">${row.locationCount} helyszín · ${row.hourCount} óra</span>`);
-        } else if (level !== 'location') {
+        } else if (!pointLevel) {
           lines.push('<span class="muted">Nincs adat ebben a periódusban</span>');
         }
         showTip(tip, event, wrapRef.current, lines.join('<br>'));
@@ -109,13 +111,14 @@ export default function ChoroplethMap({
       .on('pointerleave', () => tip.style('opacity', 0))
       .transition()
       .duration(250)
-      .attr('fill', (f) => (level === 'location' ? noData : fillOf(rowForFeature(f))));
+      .attr('fill', (f) => (pointLevel ? noData : fillOf(rowForFeature(f))));
 
     // --- Jelek (glyph): szélirány nyilak vagy csapadék buborékok ---
     const anchor = (row) => {
-      if (level === 'location') {
-        const loc = locations.find((l) => String(l.locationKey) === row.memberKey);
-        return loc ? projection([loc.longitude, loc.latitude]) : null;
+      if (pointLevel) {
+        // Város / település esetén a hozzá tartozó helyszínek vetített pontjainak súlypontja.
+        const pts = locations.filter((l) => l.isActive && memberKeyOf(l, level) === row.memberKey).map((l) => projection([l.longitude, l.latitude]));
+        return pts.length ? [d3.mean(pts, (p) => p[0]), d3.mean(pts, (p) => p[1])] : null;
       }
       const feats = geo.features.filter((f) =>
         level === 'region' ? String(f.properties.regionKey) === row.memberKey : level === 'country' ? f.properties.countryCode === row.memberKey : true,
@@ -156,9 +159,11 @@ export default function ChoroplethMap({
     // --- Helyszínek ---
     // Minden helyszín egy átlátszatlan magból (a jelölő-/kijelölési kör) és egy nagyobb, a középponttól
     // kifelé egyre áttetszőbb udvarból áll; az udvar a kurzor alatt kiemelődik.
-    const locRows = level === 'location' ? byMember : new Map();
-    const core = level === 'location' ? 8 : 4.5;
-    const locFill = (l) => (level === 'location' && locRows.has(String(l.locationKey)) ? fillOf(locRows.get(String(l.locationKey))) : null);
+    // Város / település szinten minden helyszín a saját tagjának (összesített) értékével színeződik.
+    const locRows = pointLevel ? byMember : new Map();
+    const core = pointLevel ? 8 : 4.5;
+    const locRow = (l) => locRows.get(memberKeyOf(l, level));
+    const locFill = (l) => (locRow(l) ? fillOf(locRow(l)) : null);
     const locs = svg
       .select('g.locations')
       .selectAll('g.loc')
@@ -191,11 +196,14 @@ export default function ChoroplethMap({
         if (!pickMode) onLocationClick(l);
       })
       .on('pointermove', (event, l) => {
-        const row = locRows.get(String(l.locationKey));
+        const row = locRow(l);
+        const place = [l.locality, l.city && l.city !== l.locality ? l.city : null].filter(Boolean).join(', ');
         const lines = [
           `<strong>${l.name ?? 'Helyszín'}</strong> <span class="muted">(${formatCoord(l.latitude, 'É', 'D')}, ${formatCoord(l.longitude, 'K', 'Ny')})</span>`,
+          place ? `<span class="muted">${place}</span>` : null,
           `<span class="muted">${l.regionName ?? ''}, ${l.countryName ?? ''}</span>`,
-        ];
+        ].filter(Boolean);
+        if (row && level !== 'location') lines.push(`<span class="muted">${row.memberName} összesítve (${row.locationCount} helyszín)</span>`);
         if (row) for (const m of [fillMeasure, glyphMeasure].filter(Boolean)) lines.push(`${m.label}: <b>${formatValue(row.values[m.key], m)}</b>`);
         lines.push(
           `<span class="muted">${
