@@ -182,7 +182,10 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 /* --- Csúszka --- */
 .time-slider { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--grid); flex-wrap: wrap; }
 .time-slider input[type='range'] { flex: 1 1 200px; accent-color: var(--accent); }
-.slider-label { display: flex; flex-direction: column; min-width: 170px; }
+.slider-label { display: flex; flex-direction: column; align-items: flex-start; min-width: 170px; }
+.slider-date { background: none; border: 1px dashed transparent; border-radius: 6px; padding: 1px 6px; margin-left: -6px; color: inherit; font: inherit; font-weight: 700; cursor: pointer; text-align: left; }
+.slider-date:hover, .slider-date:focus-visible { border-color: var(--accent); }
+.slider-date.active { border-style: solid; border-color: var(--accent); color: var(--accent); }
 
 /* --- KPI --- */
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }

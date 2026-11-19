@@ -4,8 +4,9 @@ import { formatPeriod, GRAINS } from '../utils/time.js';
 /**
  * A kijelölt időszak periódusai között léptető csúszka, amely az aktuális részletességi szinthez
  * (óra / nap / hónap / év) igazodik. Lejátszás gombbal animálható.
+ * Az aktuális dátumra kattintva az időszak arra a periódusra szűkíthető (újabb kattintásra visszaáll).
  */
-export default function TimeSlider({ periods, index, onChange, grain, forecastStart }) {
+export default function TimeSlider({ periods, index, onChange, grain, forecastStart, focused, onFocusPeriod }) {
   const [playing, setPlaying] = useState(false);
   const last = periods.length - 1;
 
@@ -30,6 +31,7 @@ export default function TimeSlider({ periods, index, onChange, grain, forecastSt
   const current = periods[Math.min(index, last)];
   const isForecast = forecastStart && current > forecastStart;
   const grainLabel = GRAINS.find((g) => g.key === grain)?.label.toLowerCase();
+  const focusTitle = focused ? 'Vissza az eredeti időszakra' : 'Időszak szűkítése erre a periódusra';
 
   return (
     <div className="time-slider">
@@ -61,10 +63,23 @@ export default function TimeSlider({ periods, index, onChange, grain, forecastSt
         ›
       </button>
       <div className="slider-label">
-        <strong>{formatPeriod(current, grain)}</strong>
+        <button
+          type="button"
+          className={`slider-date${focused ? ' active' : ''}`}
+          onClick={() => {
+            setPlaying(false);
+            onFocusPeriod?.(current);
+          }}
+          aria-pressed={!!focused}
+          title={focusTitle}
+        >
+          {formatPeriod(current, grain)}
+          <span aria-hidden="true">{focused ? ' ↺' : ''}</span>
+        </button>
         <span className="muted small">
           {index + 1} / {periods.length} {grainLabel}
           {isForecast ? ' · előrejelzés' : ''}
+          {focused ? ' · szűkített időszak' : ''}
         </span>
       </div>
     </div>

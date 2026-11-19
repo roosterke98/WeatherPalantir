@@ -66,6 +66,7 @@ export function createInitialState(meta) {
     conditions: [],
     geoPath: [],
     timeStack: [],
+    periodFocus: null,
     tableMeasures: ['temperature', 'precipitation', 'windSpeed', 'relativeHumidity'],
     pivot: false,
   };
@@ -132,11 +133,28 @@ export function pathFor(level, key, meta) {
 
 export function reducer(state, action) {
   switch (action.type) {
-    case 'set':
-      return normalize({ ...state, ...action.patch });
+    // A dátumválasztókkal megadott új tartomány „elfelejti” a csúszka dátumára szűrést.
+    case 'set': {
+      const rangeChanged = 'from' in action.patch || 'to' in action.patch;
+      return normalize({ ...state, ...action.patch, ...(rangeChanged ? { periodFocus: null } : {}) });
+    }
 
     case 'setRange':
-      return normalize({ ...state, from: action.from, to: action.to, grain: action.grain ?? state.grain });
+      return normalize({ ...state, from: action.from, to: action.to, grain: action.grain ?? state.grain, periodFocus: null });
+
+    // A csúszka aktuális dátumára kattintva az időszak arra a periódusra szűkül (eggyel finomabb bontással);
+    // újabb kattintásra visszaáll az eredeti tartomány (a közben végzett idő-lefúrásokkal együtt).
+    case 'focusPeriod': {
+      if (state.periodFocus) return normalize({ ...state, ...state.periodFocus, periodFocus: null });
+      const [from, to] = periodRange(action.period, action.grain, parseIsoDate(action.min), parseIsoDate(action.max));
+      return normalize({
+        ...state,
+        periodFocus: { from: state.from, to: state.to, grain: state.grain, timeStack: state.timeStack },
+        from,
+        to,
+        grain: finerGrain(action.grain) ?? action.grain,
+      });
+    }
 
     // Időbeli lefúrás: a kattintott periódusra szűkít, eggyel finomabb bontással.
     // A periódus szintje (action.grain) eltérhet az aktuálistól, pl. éves nézetben egy hónapra kattintva.

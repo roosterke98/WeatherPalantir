@@ -304,7 +304,17 @@ export default function AnalysisView({ meta }) {
               selectMode ? toggleLocations([loc.locationKey]) : dispatch({ type: 'mapClick', path: pathFor('location', loc.locationKey, meta) })
             }
           />
-          <TimeSlider periods={periods} index={periodIdx} onChange={setPeriodIdx} grain={state.grain} forecastStart={forecastStart} />
+          <TimeSlider
+            periods={periods}
+            index={periodIdx}
+            onChange={setPeriodIdx}
+            grain={state.grain}
+            forecastStart={forecastStart}
+            focused={!!state.periodFocus}
+            onFocusPeriod={(period) =>
+              dispatch({ type: 'focusPeriod', period, grain: state.grain, min: meta.range.min?.slice(0, 10), max: meta.range.max?.slice(0, 10) })
+            }
+          />
         </div>
 
         <div className="side-col">
