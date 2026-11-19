@@ -183,6 +183,12 @@ input:focus-visible, select:focus-visible, button:focus-visible, li:focus-visibl
 .time-slider { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--grid); flex-wrap: wrap; }
 .time-slider input[type='range'] { flex: 1 1 200px; accent-color: var(--accent); }
 .slider-label { display: flex; flex-direction: column; align-items: flex-start; min-width: 170px; }
+.speed-control { position: relative; display: inline-flex; }
+.speed-control .btn.active { border-color: var(--accent); color: var(--accent); }
+.speed-popover { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: 200px; margin: 0; padding: 10px 12px; z-index: 30; }
+.speed-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.speed-popover input[type='range'] { width: 100%; accent-color: var(--accent); }
+.speed-scale { display: flex; justify-content: space-between; }
 .slider-date { background: none; border: 1px dashed transparent; border-radius: 6px; padding: 1px 6px; margin-left: -6px; color: inherit; font: inherit; font-weight: 700; cursor: pointer; text-align: left; }
 .slider-date:hover, .slider-date:focus-visible { border-color: var(--accent); }
 .slider-date.active { border-style: solid; border-color: var(--accent); color: var(--accent); }
